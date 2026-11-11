@@ -88,9 +88,8 @@ model User {
   createdAt      DateTime @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @db.Timestamptz(6)
 
-  divisionAccess        UserDivisionAccess[]
-  officeAccess          UserOfficeAccess[]
-  roleAssignments       UserRoleAssignment[]
+  divisionRoleAssignments UserRoleAssignment[]
+  officeRoleAssignments   UserOfficeRoleAssignment[]
   createdIndicators     Indicator[]              @relation("IndicatorCreatedBy")
   createdMeasurements   Measurement[]            @relation("MeasurementCreatedBy")
   updatedMeasurements   Measurement[]            @relation("MeasurementUpdatedBy")
@@ -107,8 +106,8 @@ model Role {
   code            RoleCode            @unique
   name            String              @unique @db.VarChar(120)
   description     String?
-  rolePermissions RolePermission[]
-  assignments     UserRoleAssignment[]
+  divisionAssignments  UserRoleAssignment[]
+  officeAssignments    UserOfficeRoleAssignment[]
 }
 
 model Division {
@@ -121,8 +120,8 @@ model Division {
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
   offices        Office[]
-  userAccess     UserDivisionAccess[]
-  roleAssignments UserRoleAssignment[]
+  roleAssignments       UserRoleAssignment[]
+  officeRoleAssignments UserOfficeRoleAssignment[]
   imports        ImportBatch[]
   reports        ReportRun[]
   auditEvents    AuditEvent[]
@@ -139,13 +138,13 @@ model Office {
   updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
   division        Division                @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  userAccess      UserOfficeAccess[]
-  roleAssignments UserRoleAssignment[]
+  officeRoleAssignments UserOfficeRoleAssignment[]
   measurements    Measurement[]
   imports         ImportBatch[]
   auditEvents     AuditEvent[]
 
   @@unique([divisionId, code])
+  @@unique([id, divisionId])
   @@index([divisionId, isActive])
 }
 
@@ -241,64 +240,36 @@ model AuditEvent {
   @@index([officeId, createdAt])
 }
 
-model Permission {
-  id              String           @id @default(uuid()) @db.Uuid
-  code            String           @unique @db.VarChar(100)
-  name            String           @db.VarChar(150)
-  description     String?
-  rolePermissions RolePermission[]
-}
-
-model RolePermission {
-  roleId       String     @db.Uuid
-  permissionId String     @db.Uuid
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@id([roleId, permissionId])
-}
-
-model UserDivisionAccess {
-  userId     String   @db.Uuid
-  divisionId String   @db.Uuid
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-
-  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@id([userId, divisionId])
-  @@index([divisionId, userId])
-}
-
-model UserOfficeAccess {
-  userId    String   @db.Uuid
-  officeId  String   @db.Uuid
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  office Office @relation(fields: [officeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@id([userId, officeId])
-  @@index([officeId, userId])
-}
-
 model UserRoleAssignment {
   id         String    @id @default(uuid()) @db.Uuid
   userId     String    @db.Uuid
   roleId     String    @db.Uuid
   divisionId String    @db.Uuid
-  officeId   String?   @db.Uuid
   createdAt  DateTime  @default(now()) @db.Timestamptz(6)
-  revokedAt  DateTime? @db.Timestamptz(6)
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   role     Role     @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  office   Office?  @relation(fields: [officeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, roleId, divisionId])
+  @@index([divisionId, userId])
+}
+
+model UserOfficeRoleAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  roleId     String   @db.Uuid
+  divisionId String   @db.Uuid
+  officeId   String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  user     User   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  office   Office @relation(fields: [officeId, divisionId], references: [id, divisionId], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([userId, roleId, divisionId, officeId])
-  @@index([userId, divisionId, officeId])
+  @@index([officeId, userId])
 }
 
 model ImportBatch {
@@ -319,7 +290,7 @@ model ImportBatch {
   createdAt        DateTime        @default(now()) @db.Timestamptz(6)
 
   division   Division          @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  office     Office?           @relation(fields: [officeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  office     Office?          @relation(fields: [officeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   uploadedBy User              @relation(fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
   rowResults ImportRowResult[]
 
