@@ -13,12 +13,20 @@ function App() {
   const [error, setError] = useState("");
   const [divisions, setDivisions] = useState([]);
   const [offices, setOffices] = useState([]);
+  const [indicators, setIndicators] = useState([]);
   const [loading, setLoading] = useState(false);
   const [divisionForm, setDivisionForm] = useState({ code: "", name: "" });
   const [officeForm, setOfficeForm] = useState({
     divisionId: "",
     code: "",
     name: ""
+  });
+  const [indicatorForm, setIndicatorForm] = useState({
+    code: "",
+    name: "",
+    description: "",
+    unit: "",
+    valueType: "COUNT"
   });
 
   async function loadDivisionsAndOffices() {
@@ -41,6 +49,20 @@ function App() {
       if (divisionsData.length > 0 && !officeForm.divisionId) {
         setOfficeForm((form) => ({ ...form, divisionId: divisionsData[0].id }));
       }
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadIndicators() {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("http://localhost:5001/api/indicators");
+      if (!response.ok) throw new Error("Could not load indicators.");
+      setIndicators(await response.json());
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -115,6 +137,30 @@ function App() {
     }
   }
 
+  async function addIndicator(event) {
+    event.preventDefault();
+    setError("");
+    try {
+      const response = await fetch("http://localhost:5001/api/indicators", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(indicatorForm)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not add indicator.");
+      setIndicatorForm({
+        code: "",
+        name: "",
+        description: "",
+        unit: "",
+        valueType: "COUNT"
+      });
+      await loadIndicators();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
   const menuItems = [
     "Dashboard",
     "Divisions & Offices",
@@ -137,6 +183,9 @@ function App() {
                 setActivePage(item);
                 if (item === "Divisions & Offices") {
                   loadDivisionsAndOffices();
+                }
+                if (item === "Indicators") {
+                  loadIndicators();
                 }
               }}
             >
@@ -275,6 +324,93 @@ function App() {
                           <td>{office.code}</td>
                           <td>{office.name}</td>
                           <td>{divisions.find((division) => division.id === office.divisionId)?.name || office.divisionId}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        ) : activePage === "Indicators" ? (
+          <section className="dashboard">
+            <h1>Indicators</h1>
+            <p>Define the performance indicators used by PostPilot.</p>
+
+            {error && <p className="error-message">{error}</p>}
+            {loading ? (
+              <p>Loading indicators...</p>
+            ) : (
+              <div className="management-grid">
+                <div className="management-card">
+                  <h2>Add Indicator</h2>
+                  <form onSubmit={addIndicator} className="simple-form">
+                    <input
+                      placeholder="Indicator code"
+                      value={indicatorForm.code}
+                      onChange={(event) =>
+                        setIndicatorForm({ ...indicatorForm, code: event.target.value })
+                      }
+                      required
+                    />
+                    <input
+                      placeholder="Indicator name"
+                      value={indicatorForm.name}
+                      onChange={(event) =>
+                        setIndicatorForm({ ...indicatorForm, name: event.target.value })
+                      }
+                      required
+                    />
+                    <textarea
+                      placeholder="Description"
+                      value={indicatorForm.description}
+                      onChange={(event) =>
+                        setIndicatorForm({ ...indicatorForm, description: event.target.value })
+                      }
+                      required
+                    />
+                    <input
+                      placeholder="Unit"
+                      value={indicatorForm.unit}
+                      onChange={(event) =>
+                        setIndicatorForm({ ...indicatorForm, unit: event.target.value })
+                      }
+                      required
+                    />
+                    <select
+                      value={indicatorForm.valueType}
+                      onChange={(event) =>
+                        setIndicatorForm({ ...indicatorForm, valueType: event.target.value })
+                      }
+                    >
+                      <option value="COUNT">COUNT</option>
+                      <option value="DECIMAL">DECIMAL</option>
+                      <option value="PERCENTAGE">PERCENTAGE</option>
+                    </select>
+                    <button type="submit">Add Indicator</button>
+                  </form>
+                </div>
+
+                <div className="management-card">
+                  <h2>Indicator List</h2>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Unit</th>
+                        <th>Value Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {indicators.map((indicator) => (
+                        <tr key={indicator.id}>
+                          <td>{indicator.code}</td>
+                          <td>{indicator.name}</td>
+                          <td>{indicator.description}</td>
+                          <td>{indicator.unit}</td>
+                          <td>{indicator.valueType}</td>
                         </tr>
                       ))}
                     </tbody>

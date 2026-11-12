@@ -166,11 +166,18 @@ body {
 }
 
 .simple-form input,
-.simple-form select {
+.simple-form select,
+.simple-form textarea {
   border: 1px solid #d9e0ea;
   border-radius: 5px;
   padding: 10px;
   font-size: 14px;
+  font-family: Arial, sans-serif;
+}
+
+.simple-form textarea {
+  min-height: 80px;
+  resize: vertical;
 }
 
 .simple-form button {
