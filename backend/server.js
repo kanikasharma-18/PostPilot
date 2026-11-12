@@ -1,11 +1,13 @@
 
 const express = require("express");
+const apiRoutes = require("./routes/apiRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(express.json());
+app.use("/api", apiRoutes);
 
 // Home route
 app.get("/", (req, res) => {
