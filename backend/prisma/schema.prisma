@@ -7,124 +7,18 @@ datasource db {
   provider = "postgresql"
 }
 
-enum RoleCode {
-  DIVISIONAL_ADMINISTRATOR
-  DIVISIONAL_OFFICER
-  OPERATIONAL_STAFF
-  ANALYST
-}
-
 enum IndicatorValueType {
   COUNT
   DECIMAL
   PERCENTAGE
 }
 
-enum IndicatorCalculationMethod {
-  MANUAL
-  IMPORTED
-  CALCULATED
-}
-
-enum MeasurementPeriodType {
-  DAILY
-  WEEKLY
-  MONTHLY
-  FINANCIAL_YEAR
-}
-
-enum MeasurementSourceType {
-  MANUAL
-  CSV
-  XLSX
-}
-
-enum MeasurementStatus {
-  DRAFT
-  SUBMITTED
-  UNDER_REVIEW
-  APPROVED
-  REJECTED
-}
-
-enum ImportFileFormat {
-  CSV
-  XLSX
-}
-
-enum ImportStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  COMPLETED_WITH_ERRORS
-  FAILED
-}
-
-enum ImportRowStatus {
-  ACCEPTED
-  REJECTED
-}
-
-enum ReportFormat {
-  PDF
-  XLSX
-}
-
-enum ReportStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-}
-
-model User {
-  id             String   @id @default(uuid()) @db.Uuid
-  username       String   @unique @db.VarChar(150)
-  displayName    String   @db.VarChar(200)
-  email          String?  @unique @db.VarChar(254)
-  externalAuthId String?  @unique @db.VarChar(255)
-  isActive       Boolean  @default(true)
-  lastLoginAt    DateTime? @db.Timestamptz(6)
-  createdAt      DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
-
-  divisionRoleAssignments UserRoleAssignment[]
-  officeRoleAssignments   UserOfficeRoleAssignment[]
-  createdIndicators     Indicator[]              @relation("IndicatorCreatedBy")
-  createdMeasurements   Measurement[]            @relation("MeasurementCreatedBy")
-  updatedMeasurements   Measurement[]            @relation("MeasurementUpdatedBy")
-  submittedMeasurements Measurement[]            @relation("MeasurementSubmittedBy")
-  approvedMeasurements  Measurement[]            @relation("MeasurementApprovedBy")
-  transitions           MeasurementTransition[]
-  imports               ImportBatch[]
-  reports               ReportRun[]
-  auditEvents           AuditEvent[]
-}
-
-model Role {
-  id              String              @id @default(uuid()) @db.Uuid
-  code            RoleCode            @unique
-  name            String              @unique @db.VarChar(120)
-  description     String?
-  divisionAssignments  UserRoleAssignment[]
-  officeAssignments    UserOfficeRoleAssignment[]
-}
-
 model Division {
-  id          String   @id @default(uuid()) @db.Uuid
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(200)
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  id      String   @id @default(uuid()) @db.Uuid
+  code    String   @unique @db.VarChar(50)
+  name    String   @db.VarChar(200)
 
-  offices        Office[]
-  roleAssignments       UserRoleAssignment[]
-  officeRoleAssignments UserOfficeRoleAssignment[]
-  imports        ImportBatch[]
-  reports        ReportRun[]
-  auditEvents    AuditEvent[]
+  offices Office[]
 }
 
 model Office {
@@ -132,207 +26,37 @@ model Office {
   divisionId String   @db.Uuid
   code       String   @db.VarChar(50)
   name       String   @db.VarChar(200)
-  address    String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
 
-  division        Division                @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  officeRoleAssignments UserOfficeRoleAssignment[]
-  measurements    Measurement[]
-  imports         ImportBatch[]
-  auditEvents     AuditEvent[]
+  division     Division      @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  measurements Measurement[]
 
   @@unique([divisionId, code])
-  @@unique([id, divisionId])
-  @@index([divisionId, isActive])
+  @@index([divisionId])
 }
 
 model Indicator {
-  id                String                     @id @default(uuid()) @db.Uuid
-  code              String                     @unique @db.VarChar(100)
-  name              String                     @db.VarChar(200)
-  description       String
-  unit              String                     @db.VarChar(50)
-  valueType         IndicatorValueType
-  calculationMethod IndicatorCalculationMethod
-  isCore            Boolean                    @default(false)
-  isActive          Boolean                    @default(true)
-  createdById       String?                    @db.Uuid
-  createdAt         DateTime                   @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime                   @updatedAt @db.Timestamptz(6)
+  id          String             @id @default(uuid()) @db.Uuid
+  code        String             @unique @db.VarChar(100)
+  name        String             @db.VarChar(200)
+  description String
+  unit        String             @db.VarChar(50)
+  valueType   IndicatorValueType
 
-  createdBy    User?         @relation("IndicatorCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
   measurements Measurement[]
-
-  @@index([isActive, isCore])
 }
 
 model Measurement {
-  id            String                @id @default(uuid()) @db.Uuid
-  officeId      String                @db.Uuid
-  indicatorId   String                @db.Uuid
-  periodType    MeasurementPeriodType
-  periodStart   DateTime              @db.Date
-  periodEnd     DateTime              @db.Date
-  value         Decimal               @db.Decimal(20, 4)
-  targetValue   Decimal?              @db.Decimal(20, 4)
-  sourceType    MeasurementSourceType
-  status        MeasurementStatus     @default(DRAFT)
-  createdById   String                @db.Uuid
-  updatedById   String                @db.Uuid
-  submittedById String?               @db.Uuid
-  approvedById  String?               @db.Uuid
-  submittedAt   DateTime?             @db.Timestamptz(6)
-  approvedAt    DateTime?             @db.Timestamptz(6)
-  createdAt     DateTime              @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime              @updatedAt @db.Timestamptz(6)
+  id          String   @id @default(uuid()) @db.Uuid
+  officeId    String   @db.Uuid
+  indicatorId String   @db.Uuid
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+  value       Decimal  @db.Decimal(20, 4)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
 
-  office      Office                  @relation(fields: [officeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  indicator   Indicator               @relation(fields: [indicatorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  createdBy   User                    @relation("MeasurementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  updatedBy   User                    @relation("MeasurementUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  submittedBy User?                   @relation("MeasurementSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  approvedBy  User?                   @relation("MeasurementApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  transitions MeasurementTransition[]
-  importRows  ImportRowResult[]
+  office    Office    @relation(fields: [officeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  indicator Indicator @relation(fields: [indicatorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
-  @@unique([officeId, indicatorId, periodType, periodStart, periodEnd])
   @@index([officeId, periodStart, periodEnd])
   @@index([indicatorId, periodStart, periodEnd])
-  @@index([status, officeId])
-}
-
-model MeasurementTransition {
-  id            String             @id @default(uuid()) @db.Uuid
-  measurementId String             @db.Uuid
-  fromStatus    MeasurementStatus?
-  toStatus      MeasurementStatus
-  actorId       String             @db.Uuid
-  comment       String?
-  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
-
-  measurement Measurement @relation(fields: [measurementId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  actor       User        @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@index([measurementId, createdAt])
-}
-
-model AuditEvent {
-  id         String    @id @default(uuid()) @db.Uuid
-  actorId    String?   @db.Uuid
-  action     String    @db.VarChar(100)
-  entityType String    @db.VarChar(100)
-  entityId   String?   @db.Uuid
-  divisionId String?   @db.Uuid
-  officeId   String?   @db.Uuid
-  beforeData Json?
-  afterData  Json?
-  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
-
-  actor    User?     @relation(fields: [actorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  division Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  office   Office?   @relation(fields: [officeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
-  @@index([actorId, createdAt])
-  @@index([entityType, entityId, createdAt])
-  @@index([divisionId, createdAt])
-  @@index([officeId, createdAt])
-}
-
-model UserRoleAssignment {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @db.Uuid
-  roleId     String    @db.Uuid
-  divisionId String    @db.Uuid
-  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
-
-  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  role     Role     @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@unique([userId, roleId, divisionId])
-  @@index([divisionId, userId])
-}
-
-model UserOfficeRoleAssignment {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @db.Uuid
-  roleId     String   @db.Uuid
-  divisionId String   @db.Uuid
-  officeId   String   @db.Uuid
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-
-  user     User   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  role     Role   @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  division Division @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  office   Office @relation(fields: [officeId, divisionId], references: [id, divisionId], onDelete: Restrict, onUpdate: Cascade)
-
-  @@unique([userId, roleId, divisionId, officeId])
-  @@index([officeId, userId])
-}
-
-model ImportBatch {
-  id               String          @id @default(uuid()) @db.Uuid
-  divisionId       String          @db.Uuid
-  officeId         String?         @db.Uuid
-  uploadedById     String          @db.Uuid
-  originalFilename String          @db.VarChar(255)
-  fileFormat       ImportFileFormat
-  fileSizeBytes    BigInt
-  storageReference String?
-  idempotencyKey   String?         @unique @db.VarChar(150)
-  status           ImportStatus    @default(PENDING)
-  totalRows        Int             @default(0)
-  acceptedRows     Int             @default(0)
-  rejectedRows     Int             @default(0)
-  completedAt      DateTime?       @db.Timestamptz(6)
-  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
-
-  division   Division          @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  office     Office?          @relation(fields: [officeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  uploadedBy User              @relation(fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  rowResults ImportRowResult[]
-
-  @@index([divisionId, officeId, createdAt])
-}
-
-model ImportRowResult {
-  id            String          @id @default(uuid()) @db.Uuid
-  importBatchId String          @db.Uuid
-  rowNumber     Int
-  status        ImportRowStatus
-  measurementId String?         @db.Uuid
-  fieldName     String?         @db.VarChar(100)
-  errorCode     String?         @db.VarChar(100)
-  errorMessage  String?
-  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
-
-  importBatch ImportBatch @relation(fields: [importBatchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  measurement Measurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
-  @@unique([importBatchId, rowNumber])
-  @@index([importBatchId, status])
-}
-
-model ReportRun {
-  id               String                @id @default(uuid()) @db.Uuid
-  divisionId       String                @db.Uuid
-  requestedById    String                @db.Uuid
-  reportType       String                @db.VarChar(100)
-  format           ReportFormat
-  periodType       MeasurementPeriodType?
-  periodStart      DateTime?             @db.Date
-  periodEnd        DateTime?             @db.Date
-  storageReference String?
-  fileSizeBytes    BigInt?
-  status           ReportStatus          @default(PENDING)
-  errorMessage     String?
-  createdAt        DateTime              @default(now()) @db.Timestamptz(6)
-  completedAt      DateTime?             @db.Timestamptz(6)
-
-  division    Division @relation(fields: [divisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  requestedBy User     @relation(fields: [requestedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@index([divisionId, createdAt])
 }
