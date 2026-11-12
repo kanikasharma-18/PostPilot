@@ -1,0 +1,297 @@
+
+import { useEffect, useState } from "react";
+import "./App.css";
+
+function App() {
+  const [activePage, setActivePage] = useState("Dashboard");
+  const [counts, setCounts] = useState({
+    Divisions: 0,
+    Offices: 0,
+    Indicators: 0,
+    Measurements: 0
+  });
+  const [error, setError] = useState("");
+  const [divisions, setDivisions] = useState([]);
+  const [offices, setOffices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [divisionForm, setDivisionForm] = useState({ code: "", name: "" });
+  const [officeForm, setOfficeForm] = useState({
+    divisionId: "",
+    code: "",
+    name: ""
+  });
+
+  async function loadDivisionsAndOffices() {
+    setLoading(true);
+    setError("");
+    try {
+      const [divisionsResponse, officesResponse] = await Promise.all([
+        fetch("http://localhost:5001/api/divisions"),
+        fetch("http://localhost:5001/api/offices")
+      ]);
+
+      if (!divisionsResponse.ok || !officesResponse.ok) {
+        throw new Error("Could not load divisions and offices.");
+      }
+
+      const divisionsData = await divisionsResponse.json();
+      const officesData = await officesResponse.json();
+      setDivisions(divisionsData);
+      setOffices(officesData);
+      if (divisionsData.length > 0 && !officeForm.divisionId) {
+        setOfficeForm((form) => ({ ...form, divisionId: divisionsData[0].id }));
+      }
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    async function loadCounts() {
+      try {
+        const responses = await Promise.all([
+          fetch("http://localhost:5001/api/divisions"),
+          fetch("http://localhost:5001/api/offices"),
+          fetch("http://localhost:5001/api/indicators"),
+          fetch("http://localhost:5001/api/measurements")
+        ]);
+
+        if (responses.some((response) => !response.ok)) {
+          throw new Error("Could not load dashboard counts.");
+        }
+
+        const [divisions, offices, indicators, measurements] =
+          await Promise.all(responses.map((response) => response.json()));
+
+        setCounts({
+          Divisions: divisions.length,
+          Offices: offices.length,
+          Indicators: indicators.length,
+          Measurements: measurements.length
+        });
+      } catch (requestError) {
+        setError(requestError.message);
+      }
+    }
+
+    loadCounts();
+  }, []);
+
+  async function addDivision(event) {
+    event.preventDefault();
+    setError("");
+    try {
+      const response = await fetch("http://localhost:5001/api/divisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(divisionForm)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not add division.");
+      setDivisionForm({ code: "", name: "" });
+      await loadDivisionsAndOffices();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  async function addOffice(event) {
+    event.preventDefault();
+    setError("");
+    try {
+      const response = await fetch("http://localhost:5001/api/offices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(officeForm)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not add office.");
+      setOfficeForm({ divisionId: divisions[0]?.id || "", code: "", name: "" });
+      await loadDivisionsAndOffices();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  const menuItems = [
+    "Dashboard",
+    "Divisions & Offices",
+    "Indicators",
+    "Measurements"
+  ];
+
+  return (
+    <div className="app">
+      <aside className="sidebar">
+        <h2 className="logo">PostPilot</h2>
+        <p className="subtitle">POSTAL PERFORMANCE SYSTEM</p>
+
+        <nav>
+          {menuItems.map((item) => (
+            <button
+              key={item}
+              className={activePage === item ? "nav-item active" : "nav-item"}
+              onClick={() => {
+                setActivePage(item);
+                if (item === "Divisions & Offices") {
+                  loadDivisionsAndOffices();
+                }
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          Department of Posts
+        </div>
+      </aside>
+
+      <main className="main-content">
+        <header className="topbar">
+          <h3>{activePage}</h3>
+          <span>PostPilot Administration</span>
+        </header>
+
+        {activePage === "Dashboard" ? (
+          <section className="dashboard">
+            <h1>Dashboard Overview</h1>
+            <p>Monitor postal performance across divisions and offices.</p>
+
+            <div className="stats-grid">
+              {Object.keys(counts).map((item) => (
+                <div className="stat-card" key={item}>
+                  <span>{item}</span>
+                  <h2>{counts[item]}</h2>
+                </div>
+              ))}
+            </div>
+
+            {error && <p>{error}</p>}
+
+            <div className="welcome-card">
+              <h2>Welcome to PostPilot</h2>
+              <p>
+                Your central platform for monitoring and managing
+                postal performance data.
+              </p>
+            </div>
+          </section>
+        ) : activePage === "Divisions & Offices" ? (
+          <section className="dashboard">
+            <h1>Divisions & Offices</h1>
+            <p>Manage divisions and the offices that belong to them.</p>
+
+            {error && <p className="error-message">{error}</p>}
+            {loading ? (
+              <p>Loading divisions and offices...</p>
+            ) : (
+              <div className="management-grid">
+                <div className="management-card">
+                  <h2>Add Division</h2>
+                  <form onSubmit={addDivision} className="simple-form">
+                    <input
+                      placeholder="Division code"
+                      value={divisionForm.code}
+                      onChange={(event) =>
+                        setDivisionForm({ ...divisionForm, code: event.target.value })
+                      }
+                      required
+                    />
+                    <input
+                      placeholder="Division name"
+                      value={divisionForm.name}
+                      onChange={(event) =>
+                        setDivisionForm({ ...divisionForm, name: event.target.value })
+                      }
+                      required
+                    />
+                    <button type="submit">Add Division</button>
+                  </form>
+
+                  <h2>Divisions</h2>
+                  <table>
+                    <thead>
+                      <tr><th>Code</th><th>Name</th></tr>
+                    </thead>
+                    <tbody>
+                      {divisions.map((division) => (
+                        <tr key={division.id}>
+                          <td>{division.code}</td>
+                          <td>{division.name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="management-card">
+                  <h2>Add Office</h2>
+                  <form onSubmit={addOffice} className="simple-form">
+                    <select
+                      value={officeForm.divisionId}
+                      onChange={(event) =>
+                        setOfficeForm({ ...officeForm, divisionId: event.target.value })
+                      }
+                      required
+                    >
+                      <option value="">Select division</option>
+                      {divisions.map((division) => (
+                        <option key={division.id} value={division.id}>
+                          {division.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      placeholder="Office code"
+                      value={officeForm.code}
+                      onChange={(event) =>
+                        setOfficeForm({ ...officeForm, code: event.target.value })
+                      }
+                      required
+                    />
+                    <input
+                      placeholder="Office name"
+                      value={officeForm.name}
+                      onChange={(event) =>
+                        setOfficeForm({ ...officeForm, name: event.target.value })
+                      }
+                      required
+                    />
+                    <button type="submit">Add Office</button>
+                  </form>
+
+                  <h2>Offices</h2>
+                  <table>
+                    <thead>
+                      <tr><th>Code</th><th>Name</th><th>Division</th></tr>
+                    </thead>
+                    <tbody>
+                      {offices.map((office) => (
+                        <tr key={office.id}>
+                          <td>{office.code}</td>
+                          <td>{office.name}</td>
+                          <td>{divisions.find((division) => division.id === office.divisionId)?.name || office.divisionId}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        ) : (
+          <section className="dashboard">
+            <h1>{activePage}</h1>
+            <p>This section will be implemented next.</p>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default App;
