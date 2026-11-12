@@ -14,6 +14,7 @@ function App() {
   const [divisions, setDivisions] = useState([]);
   const [offices, setOffices] = useState([]);
   const [indicators, setIndicators] = useState([]);
+  const [measurements, setMeasurements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [divisionForm, setDivisionForm] = useState({ code: "", name: "" });
   const [officeForm, setOfficeForm] = useState({
@@ -28,6 +29,15 @@ function App() {
     unit: "",
     valueType: "COUNT"
   });
+  const [measurementForm, setMeasurementForm] = useState({
+    officeId: "",
+    indicatorId: "",
+    periodStart: "",
+    periodEnd: "",
+    value: ""
+  });
+  const [editingMeasurementId, setEditingMeasurementId] = useState("");
+  const [editingValue, setEditingValue] = useState("");
 
   async function loadDivisionsAndOffices() {
     setLoading(true);
@@ -63,6 +73,38 @@ function App() {
       const response = await fetch("http://localhost:5001/api/indicators");
       if (!response.ok) throw new Error("Could not load indicators.");
       setIndicators(await response.json());
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadMeasurements() {
+    setLoading(true);
+    setError("");
+    try {
+      const [measurementsResponse, officesResponse, indicatorsResponse] = await Promise.all([
+        fetch("http://localhost:5001/api/measurements"),
+        fetch("http://localhost:5001/api/offices"),
+        fetch("http://localhost:5001/api/indicators")
+      ]);
+
+      if (!measurementsResponse.ok || !officesResponse.ok || !indicatorsResponse.ok) {
+        throw new Error("Could not load measurements.");
+      }
+
+      const measurementsData = await measurementsResponse.json();
+      const officesData = await officesResponse.json();
+      const indicatorsData = await indicatorsResponse.json();
+      setMeasurements(measurementsData);
+      setOffices(officesData);
+      setIndicators(indicatorsData);
+      setMeasurementForm((form) => ({
+        ...form,
+        officeId: form.officeId || officesData[0]?.id || "",
+        indicatorId: form.indicatorId || indicatorsData[0]?.id || ""
+      }));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -161,6 +203,51 @@ function App() {
     }
   }
 
+  async function addMeasurement(event) {
+    event.preventDefault();
+    setError("");
+    try {
+      const response = await fetch("http://localhost:5001/api/measurements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(measurementForm)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not add measurement.");
+      setMeasurementForm({
+        ...measurementForm,
+        periodStart: "",
+        periodEnd: "",
+        value: ""
+      });
+      await loadMeasurements();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  async function updateMeasurement(measurement) {
+    setError("");
+    try {
+      const response = await fetch(`http://localhost:5001/api/measurements/${measurement.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          periodStart: measurement.periodStart.slice(0, 10),
+          periodEnd: measurement.periodEnd.slice(0, 10),
+          value: editingValue
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not update measurement.");
+      setEditingMeasurementId("");
+      setEditingValue("");
+      await loadMeasurements();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
   const menuItems = [
     "Dashboard",
     "Divisions & Offices",
@@ -186,6 +273,9 @@ function App() {
                 }
                 if (item === "Indicators") {
                   loadIndicators();
+                }
+                if (item === "Measurements") {
+                  loadMeasurements();
                 }
               }}
             >
@@ -417,6 +507,134 @@ function App() {
                   </table>
                 </div>
               </div>
+            )}
+          </section>
+        ) : activePage === "Measurements" ? (
+          <section className="dashboard">
+            <h1>Measurements</h1>
+            <p>Record and update operational performance measurements.</p>
+
+            {error && <p className="error-message">{error}</p>}
+            {loading ? (
+              <p>Loading measurements...</p>
+            ) : (
+              <>
+                <div className="management-card">
+                  <h2>Add Measurement</h2>
+                  <form onSubmit={addMeasurement} className="simple-form">
+                    <select
+                      value={measurementForm.officeId}
+                      onChange={(event) =>
+                        setMeasurementForm({ ...measurementForm, officeId: event.target.value })
+                      }
+                      required
+                    >
+                      <option value="">Select office</option>
+                      {offices.map((office) => (
+                        <option key={office.id} value={office.id}>
+                          {office.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={measurementForm.indicatorId}
+                      onChange={(event) =>
+                        setMeasurementForm({ ...measurementForm, indicatorId: event.target.value })
+                      }
+                      required
+                    >
+                      <option value="">Select indicator</option>
+                      {indicators.map((indicator) => (
+                        <option key={indicator.id} value={indicator.id}>
+                          {indicator.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="date"
+                      value={measurementForm.periodStart}
+                      onChange={(event) =>
+                        setMeasurementForm({ ...measurementForm, periodStart: event.target.value })
+                      }
+                      required
+                    />
+                    <input
+                      type="date"
+                      value={measurementForm.periodEnd}
+                      onChange={(event) =>
+                        setMeasurementForm({ ...measurementForm, periodEnd: event.target.value })
+                      }
+                      required
+                    />
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Value"
+                      value={measurementForm.value}
+                      onChange={(event) =>
+                        setMeasurementForm({ ...measurementForm, value: event.target.value })
+                      }
+                      required
+                    />
+                    <button type="submit">Add Measurement</button>
+                  </form>
+                </div>
+
+                <div className="management-card">
+                  <h2>Measurement List</h2>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Office</th>
+                        <th>Indicator</th>
+                        <th>Period Start</th>
+                        <th>Period End</th>
+                        <th>Value</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {measurements.map((measurement) => (
+                        <tr key={measurement.id}>
+                          <td>{measurement.office?.name || measurement.officeId}</td>
+                          <td>{measurement.indicator?.name || measurement.indicatorId}</td>
+                          <td>{measurement.periodStart.slice(0, 10)}</td>
+                          <td>{measurement.periodEnd.slice(0, 10)}</td>
+                          <td>
+                            {editingMeasurementId === measurement.id ? (
+                              <input
+                                type="number"
+                                step="any"
+                                value={editingValue}
+                                onChange={(event) => setEditingValue(event.target.value)}
+                              />
+                            ) : (
+                              measurement.value
+                            )}
+                          </td>
+                          <td>
+                            {editingMeasurementId === measurement.id ? (
+                              <button type="button" onClick={() => updateMeasurement(measurement)}>
+                                Save
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingMeasurementId(measurement.id);
+                                  setEditingValue(measurement.value);
+                                }}
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
         ) : (
