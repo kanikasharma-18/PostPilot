@@ -956,6 +956,54 @@ th {
   color: #65728a;
 }
 
+.indicator-list-card {
+  overflow-x: auto;
+}
+
+.indicator-list-card td {
+  vertical-align: top;
+}
+
+.description-cell {
+  color: #78859b !important;
+  line-height: 1.5;
+  max-width: 360px;
+}
+
+.value-type-badge {
+  border-radius: 20px;
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.6px;
+  padding: 6px 9px;
+}
+
+.value-type-badge.count {
+  background: #eaf3ff;
+  color: #3478e5;
+}
+
+.value-type-badge.percentage {
+  background: #e8f8f2;
+  color: #2eae83;
+}
+
+.value-type-badge.decimal {
+  background: #fff3e7;
+  color: #e89243;
+}
+
+.form-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 0.7fr;
+}
+
+.indicator-modal .simple-form textarea {
+  min-height: 92px;
+}
+
 @media (max-width: 1050px) {
   .sidebar {
     width: 220px;
@@ -1032,6 +1080,10 @@ th {
 
   .management-intro .page-actions button {
     flex: 1;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
   }
 
   .management-grid {
