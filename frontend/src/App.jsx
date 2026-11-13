@@ -41,6 +41,9 @@ function App() {
   });
   const [editingMeasurementId, setEditingMeasurementId] = useState("");
   const [editingValue, setEditingValue] = useState("");
+  const [divisionSearch, setDivisionSearch] = useState("");
+  const [officeSearch, setOfficeSearch] = useState("");
+  const [openForm, setOpenForm] = useState("");
 
   async function loadDashboardCounts() {
     const responses = await Promise.all([
@@ -171,6 +174,7 @@ function App() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not add division.");
       setDivisionForm({ code: "", name: "" });
+      setOpenForm("");
       await loadDivisionsAndOffices();
       await loadDashboardCounts();
       setSuccess("Division added successfully.");
@@ -196,6 +200,7 @@ function App() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not add office.");
       setOfficeForm({ divisionId: divisions[0]?.id || "", code: "", name: "" });
+      setOpenForm("");
       await loadDivisionsAndOffices();
       await loadDashboardCounts();
       setSuccess("Office added successfully.");
@@ -340,6 +345,14 @@ function App() {
     if (page === "Indicators") loadIndicators();
     if (page === "Measurements") loadMeasurements();
   };
+  const visibleDivisions = divisions.filter((division) =>
+    `${division.code} ${division.name}`.toLowerCase().includes(divisionSearch.toLowerCase())
+  );
+  const visibleOffices = offices.filter((office) =>
+    `${office.code} ${office.name}`.toLowerCase().includes(officeSearch.toLowerCase())
+  );
+  const divisionOfficeCount = (divisionId) =>
+    offices.filter((office) => office.divisionId === divisionId).length;
 
   return (
     <div className="app">
@@ -519,104 +532,127 @@ function App() {
           </section>
         ) : activePage === "Divisions & Offices" ? (
           <section className="dashboard">
-            <h1>Divisions & Offices</h1>
-            <p>Manage divisions and the offices that belong to them.</p>
+            <div className="page-intro management-intro">
+              <div>
+                <span className="eyebrow">ADMINISTRATION</span>
+                <h1>Divisions & Offices</h1>
+                <p>Manage postal divisions and their associated offices.</p>
+              </div>
+              <div className="page-actions">
+                <button className="secondary-button" type="button" onClick={() => setOpenForm("division")}>
+                  <span>+</span> Add Division
+                </button>
+                <button className="primary-button" type="button" onClick={() => setOpenForm("office")} disabled={divisions.length === 0}>
+                  <span>+</span> Add Office
+                </button>
+              </div>
+            </div>
 
-            {error && <p className="error-message">{error}</p>}
-            {success && <p className="success-message">{success}</p>}
+            {(error || success) && (
+              <div className={error ? "notice error-notice" : "notice success-notice"} role="status">
+                <span>{error ? "!" : "✓"}</span>{error || success}
+              </div>
+            )}
             {loading ? (
-              <p>Loading divisions and offices...</p>
+              <div className="management-card loading-state">Loading divisions and offices...</div>
             ) : (
-              <div className="management-grid">
+              <div className="management-sections">
                 <div className="management-card">
-                  <h2>Add Division</h2>
-                  <form onSubmit={addDivision} className="simple-form">
-                    <input
-                      placeholder="Division code"
-                      value={divisionForm.code}
-                      onChange={(event) =>
-                        setDivisionForm({ ...divisionForm, code: event.target.value })
-                      }
-                      required
-                    />
-                    <input
-                      placeholder="Division name"
-                      value={divisionForm.name}
-                      onChange={(event) =>
-                        setDivisionForm({ ...divisionForm, name: event.target.value })
-                      }
-                      required
-                    />
-                    <button type="submit">Add Division</button>
-                  </form>
-
-                  <h2>Divisions</h2>
+                  <div className="management-card-heading">
+                    <div>
+                      <h2>Divisions</h2>
+                      <p>Administrative postal divisions</p>
+                    </div>
+                    <span className="record-count">{divisions.length} total</span>
+                  </div>
+                  <div className="table-toolbar">
+                    <label className="search-field">
+                      <span>⌕</span>
+                      <input aria-label="Search divisions" placeholder="Search divisions" value={divisionSearch} onChange={(event) => setDivisionSearch(event.target.value)} />
+                    </label>
+                  </div>
                   <table>
                     <thead>
-                      <tr><th>Code</th><th>Name</th></tr>
+                      <tr><th>Division Code</th><th>Division Name</th><th>Number of Offices</th></tr>
                     </thead>
                     <tbody>
-                      {divisions.map((division) => (
+                      {visibleDivisions.map((division) => (
                         <tr key={division.id}>
-                          <td>{division.code}</td>
-                          <td>{division.name}</td>
+                          <td><span className="code-badge">{division.code}</span></td>
+                          <td><strong>{division.name}</strong></td>
+                          <td><span className="count-badge">{divisionOfficeCount(division.id)}</span></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  {divisions.length === 0 && <div className="table-empty"><span>◈</span><strong>No divisions yet</strong><p>Add your first division to get started.</p></div>}
+                  {divisions.length > 0 && visibleDivisions.length === 0 && <div className="table-empty"><strong>No matching divisions</strong><p>Try a different search term.</p></div>}
                 </div>
 
                 <div className="management-card">
-                  <h2>Add Office</h2>
-                  <form onSubmit={addOffice} className="simple-form">
-                    <select
-                      value={officeForm.divisionId}
-                      onChange={(event) =>
-                        setOfficeForm({ ...officeForm, divisionId: event.target.value })
-                      }
-                      required
-                    >
-                      <option value="">Select division</option>
-                      {divisions.map((division) => (
-                        <option key={division.id} value={division.id}>
-                          {division.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      placeholder="Office code"
-                      value={officeForm.code}
-                      onChange={(event) =>
-                        setOfficeForm({ ...officeForm, code: event.target.value })
-                      }
-                      required
-                    />
-                    <input
-                      placeholder="Office name"
-                      value={officeForm.name}
-                      onChange={(event) =>
-                        setOfficeForm({ ...officeForm, name: event.target.value })
-                      }
-                      required
-                    />
-                    <button type="submit">Add Office</button>
-                  </form>
-
-                  <h2>Offices</h2>
+                  <div className="management-card-heading">
+                    <div>
+                      <h2>Offices</h2>
+                      <p>Postal offices assigned to divisions</p>
+                    </div>
+                    <span className="record-count">{offices.length} total</span>
+                  </div>
+                  <div className="table-toolbar">
+                    <label className="search-field">
+                      <span>⌕</span>
+                      <input aria-label="Search offices" placeholder="Search by office name or code" value={officeSearch} onChange={(event) => setOfficeSearch(event.target.value)} />
+                    </label>
+                  </div>
                   <table>
                     <thead>
-                      <tr><th>Code</th><th>Name</th><th>Division</th></tr>
+                      <tr><th>Office Code</th><th>Office Name</th><th>Division</th></tr>
                     </thead>
                     <tbody>
-                      {offices.map((office) => (
+                      {visibleOffices.map((office) => (
                         <tr key={office.id}>
-                          <td>{office.code}</td>
-                          <td>{office.name}</td>
+                          <td><span className="code-badge">{office.code}</span></td>
+                          <td><strong>{office.name}</strong></td>
                           <td>{divisions.find((division) => division.id === office.divisionId)?.name || office.divisionId}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  {offices.length === 0 && <div className="table-empty"><span>⌂</span><strong>No offices yet</strong><p>Add an office to see it listed here.</p></div>}
+                  {offices.length > 0 && visibleOffices.length === 0 && <div className="table-empty"><strong>No matching offices</strong><p>Try a different search term.</p></div>}
+                </div>
+              </div>
+            )}
+            {openForm && (
+              <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setOpenForm("")}>
+                <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+                  <div className="modal-heading">
+                    <div>
+                      <span className="eyebrow">{openForm === "division" ? "NEW DIVISION" : "NEW OFFICE"}</span>
+                      <h2 id="modal-title">{openForm === "division" ? "Add Division" : "Add Office"}</h2>
+                    </div>
+                    <button className="close-button" type="button" aria-label="Close form" onClick={() => setOpenForm("")}>×</button>
+                  </div>
+                  <form onSubmit={openForm === "division" ? addDivision : addOffice} className="simple-form">
+                    {openForm === "division" ? (
+                      <>
+                        <label>Division Code<input placeholder="e.g. DLH" value={divisionForm.code} onChange={(event) => setDivisionForm({ ...divisionForm, code: event.target.value })} required /></label>
+                        <label>Division Name<input placeholder="e.g. Delhi Circle" value={divisionForm.name} onChange={(event) => setDivisionForm({ ...divisionForm, name: event.target.value })} required /></label>
+                      </>
+                    ) : (
+                      <>
+                        <label>Office Code<input placeholder="e.g. ND01" value={officeForm.code} onChange={(event) => setOfficeForm({ ...officeForm, code: event.target.value })} required /></label>
+                        <label>Office Name<input placeholder="e.g. New Delhi GPO" value={officeForm.name} onChange={(event) => setOfficeForm({ ...officeForm, name: event.target.value })} required /></label>
+                        <label>Division<select value={officeForm.divisionId} onChange={(event) => setOfficeForm({ ...officeForm, divisionId: event.target.value })} required>
+                          <option value="">Select division</option>
+                          {divisions.map((division) => <option key={division.id} value={division.id}>{division.name}</option>)}
+                        </select></label>
+                      </>
+                    )}
+                    <div className="modal-actions">
+                      <button className="cancel-button" type="button" onClick={() => setOpenForm("")}>Cancel</button>
+                      <button className="primary-button" type="submit">Save {openForm === "division" ? "Division" : "Office"}</button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}
