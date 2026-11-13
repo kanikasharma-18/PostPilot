@@ -210,3 +210,7 @@ th {
 .error-message {
   color: #b42318;
 }
+
+.success-message {
+  color: #18794e;
+}

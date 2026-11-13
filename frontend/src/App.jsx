@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+const API_BASE_URL = "http://localhost:5001/api";
+
 function App() {
   const [activePage, setActivePage] = useState("Dashboard");
   const [counts, setCounts] = useState({
@@ -16,6 +18,7 @@ function App() {
   const [indicators, setIndicators] = useState([]);
   const [measurements, setMeasurements] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
   const [divisionForm, setDivisionForm] = useState({ code: "", name: "" });
   const [officeForm, setOfficeForm] = useState({
     divisionId: "",
@@ -39,13 +42,36 @@ function App() {
   const [editingMeasurementId, setEditingMeasurementId] = useState("");
   const [editingValue, setEditingValue] = useState("");
 
+  async function loadDashboardCounts() {
+    const responses = await Promise.all([
+      fetch(`${API_BASE_URL}/divisions`),
+      fetch(`${API_BASE_URL}/offices`),
+      fetch(`${API_BASE_URL}/indicators`),
+      fetch(`${API_BASE_URL}/measurements`)
+    ]);
+
+    if (responses.some((response) => !response.ok)) {
+      throw new Error("Could not load dashboard counts.");
+    }
+
+    const [divisionsData, officesData, indicatorsData, measurementsData] =
+      await Promise.all(responses.map((response) => response.json()));
+
+    setCounts({
+      Divisions: divisionsData.length,
+      Offices: officesData.length,
+      Indicators: indicatorsData.length,
+      Measurements: measurementsData.length
+    });
+  }
+
   async function loadDivisionsAndOffices() {
     setLoading(true);
     setError("");
     try {
       const [divisionsResponse, officesResponse] = await Promise.all([
-        fetch("http://localhost:5001/api/divisions"),
-        fetch("http://localhost:5001/api/offices")
+        fetch(`${API_BASE_URL}/divisions`),
+        fetch(`${API_BASE_URL}/offices`)
       ]);
 
       if (!divisionsResponse.ok || !officesResponse.ok) {
@@ -70,7 +96,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("http://localhost:5001/api/indicators");
+      const response = await fetch(`${API_BASE_URL}/indicators`);
       if (!response.ok) throw new Error("Could not load indicators.");
       setIndicators(await response.json());
     } catch (requestError) {
@@ -85,9 +111,9 @@ function App() {
     setError("");
     try {
       const [measurementsResponse, officesResponse, indicatorsResponse] = await Promise.all([
-        fetch("http://localhost:5001/api/measurements"),
-        fetch("http://localhost:5001/api/offices"),
-        fetch("http://localhost:5001/api/indicators")
+        fetch(`${API_BASE_URL}/measurements`),
+        fetch(`${API_BASE_URL}/offices`),
+        fetch(`${API_BASE_URL}/indicators`)
       ]);
 
       if (!measurementsResponse.ok || !officesResponse.ok || !indicatorsResponse.ok) {
@@ -115,26 +141,7 @@ function App() {
   useEffect(() => {
     async function loadCounts() {
       try {
-        const responses = await Promise.all([
-          fetch("http://localhost:5001/api/divisions"),
-          fetch("http://localhost:5001/api/offices"),
-          fetch("http://localhost:5001/api/indicators"),
-          fetch("http://localhost:5001/api/measurements")
-        ]);
-
-        if (responses.some((response) => !response.ok)) {
-          throw new Error("Could not load dashboard counts.");
-        }
-
-        const [divisions, offices, indicators, measurements] =
-          await Promise.all(responses.map((response) => response.json()));
-
-        setCounts({
-          Divisions: divisions.length,
-          Offices: offices.length,
-          Indicators: indicators.length,
-          Measurements: measurements.length
-        });
+        await loadDashboardCounts();
       } catch (requestError) {
         setError(requestError.message);
       }
@@ -146,8 +153,13 @@ function App() {
   async function addDivision(event) {
     event.preventDefault();
     setError("");
+    setSuccess("");
+    if (!divisionForm.code.trim() || !divisionForm.name.trim()) {
+      setError("Division code and name are required.");
+      return;
+    }
     try {
-      const response = await fetch("http://localhost:5001/api/divisions", {
+      const response = await fetch(`${API_BASE_URL}/divisions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(divisionForm)
@@ -156,6 +168,8 @@ function App() {
       if (!response.ok) throw new Error(result.error || "Could not add division.");
       setDivisionForm({ code: "", name: "" });
       await loadDivisionsAndOffices();
+      await loadDashboardCounts();
+      setSuccess("Division added successfully.");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -164,8 +178,13 @@ function App() {
   async function addOffice(event) {
     event.preventDefault();
     setError("");
+    setSuccess("");
+    if (!officeForm.divisionId || !officeForm.code.trim() || !officeForm.name.trim()) {
+      setError("Division, office code and office name are required.");
+      return;
+    }
     try {
-      const response = await fetch("http://localhost:5001/api/offices", {
+      const response = await fetch(`${API_BASE_URL}/offices`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(officeForm)
@@ -174,6 +193,8 @@ function App() {
       if (!response.ok) throw new Error(result.error || "Could not add office.");
       setOfficeForm({ divisionId: divisions[0]?.id || "", code: "", name: "" });
       await loadDivisionsAndOffices();
+      await loadDashboardCounts();
+      setSuccess("Office added successfully.");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -182,8 +203,14 @@ function App() {
   async function addIndicator(event) {
     event.preventDefault();
     setError("");
+    setSuccess("");
+    if (!indicatorForm.code.trim() || !indicatorForm.name.trim() ||
+        !indicatorForm.description.trim() || !indicatorForm.unit.trim()) {
+      setError("Code, name, description and unit are required.");
+      return;
+    }
     try {
-      const response = await fetch("http://localhost:5001/api/indicators", {
+      const response = await fetch(`${API_BASE_URL}/indicators`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(indicatorForm)
@@ -198,6 +225,8 @@ function App() {
         valueType: "COUNT"
       });
       await loadIndicators();
+      await loadDashboardCounts();
+      setSuccess("Indicator added successfully.");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -206,8 +235,23 @@ function App() {
   async function addMeasurement(event) {
     event.preventDefault();
     setError("");
+    setSuccess("");
+    if (!measurementForm.officeId || !measurementForm.indicatorId ||
+        !measurementForm.periodStart || !measurementForm.periodEnd ||
+        measurementForm.value === "") {
+      setError("Office, indicator, dates and value are required.");
+      return;
+    }
+    if (measurementForm.periodStart > measurementForm.periodEnd) {
+      setError("Period start cannot be after period end.");
+      return;
+    }
+    if (!Number.isFinite(Number(measurementForm.value))) {
+      setError("Value must be numeric.");
+      return;
+    }
     try {
-      const response = await fetch("http://localhost:5001/api/measurements", {
+      const response = await fetch(`${API_BASE_URL}/measurements`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(measurementForm)
@@ -221,6 +265,8 @@ function App() {
         value: ""
       });
       await loadMeasurements();
+      await loadDashboardCounts();
+      setSuccess("Measurement added successfully.");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -228,8 +274,13 @@ function App() {
 
   async function updateMeasurement(measurement) {
     setError("");
+    setSuccess("");
+    if (editingValue === "" || !Number.isFinite(Number(editingValue))) {
+      setError("Value must be numeric.");
+      return;
+    }
     try {
-      const response = await fetch(`http://localhost:5001/api/measurements/${measurement.id}`, {
+      const response = await fetch(`${API_BASE_URL}/measurements/${measurement.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -243,6 +294,8 @@ function App() {
       setEditingMeasurementId("");
       setEditingValue("");
       await loadMeasurements();
+      await loadDashboardCounts();
+      setSuccess("Measurement updated successfully.");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -309,7 +362,8 @@ function App() {
               ))}
             </div>
 
-            {error && <p>{error}</p>}
+            {error && <p className="error-message">{error}</p>}
+            {success && <p className="success-message">{success}</p>}
 
             <div className="welcome-card">
               <h2>Welcome to PostPilot</h2>
@@ -325,6 +379,7 @@ function App() {
             <p>Manage divisions and the offices that belong to them.</p>
 
             {error && <p className="error-message">{error}</p>}
+            {success && <p className="success-message">{success}</p>}
             {loading ? (
               <p>Loading divisions and offices...</p>
             ) : (
@@ -428,6 +483,7 @@ function App() {
             <p>Define the performance indicators used by PostPilot.</p>
 
             {error && <p className="error-message">{error}</p>}
+            {success && <p className="success-message">{success}</p>}
             {loading ? (
               <p>Loading indicators...</p>
             ) : (
@@ -515,6 +571,7 @@ function App() {
             <p>Record and update operational performance measurements.</p>
 
             {error && <p className="error-message">{error}</p>}
+            {success && <p className="success-message">{success}</p>}
             {loading ? (
               <p>Loading measurements...</p>
             ) : (
