@@ -4,12 +4,70 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "electron": "electron ."
+  "dev": "vite",
+  "build": "vite build",
+  "lint": "eslint .",
+  "preview": "vite preview",
+  "electron": "electron .",
+  "dist": "npm run build && electron-builder --mac dmg"
+},
+  "build": {
+  "appId": "com.postpilot.app",
+  "productName": "PostPilot",
+  "directories": {
+    "output": "release"
   },
+  "files": [
+    "dist/**/*",
+    "main.cjs",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "../backend",
+      "to": "backend",
+      "filter": [
+        "server.js",
+        "routes/**/*",
+        "db/**/*",
+        "generated/prisma/**/*",
+        "prisma/**/*",
+        "package.json",
+        "!**/.env",
+        "!**/.env.*",
+        "!**/.gitignore",
+        "!**/.git/**/*",
+        "!**/.agents/**/*",
+        "!**/.claude/**/*",
+        "!**/.windsurf/**/*",
+        "!skills-lock.json"
+      ]
+    },
+    {
+      "from": "../backend/node_modules",
+      "to": "backend/node_modules",
+      "filter": [
+        "**/*",
+        "!prisma/**/*",
+        "!**/.cache/**/*",
+        "!**/test/**/*",
+        "!**/tests/**/*",
+        "!**/.github/**/*",
+        "!**/docs/**/*",
+        "!**/README*",
+        "!**/LICENSE*",
+        "!**/.bin/**/*",
+        "!**/.env",
+        "!**/.env.*",
+        "!**/.gitignore"
+      ]
+    }
+  ],
+  "mac": {
+    "target": ["dmg"],
+    "category": "public.app-category.productivity"
+  }
+},
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
@@ -20,6 +78,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.3.1",
+    "electron-builder": "^26.18.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
