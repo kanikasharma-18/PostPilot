@@ -4,10 +4,15 @@ const apiRoutes = require("./routes/apiRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const allowedOrigins = new Set(["http://localhost:5173", "null"]);
 
 // Middleware
 app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+    const requestOrigin = req.headers.origin;
+    if (allowedOrigins.has(requestOrigin)) {
+        res.header("Access-Control-Allow-Origin", requestOrigin);
+        res.header("Vary", "Origin");
+    }
     res.header("Access-Control-Allow-Headers", "Content-Type");
     res.header("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS");
     if (req.method === "OPTIONS") return res.sendStatus(204);
@@ -31,6 +36,6 @@ app.get("/health", (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, "127.0.0.1", () => {
     console.log(`PostPilot API running on port ${PORT}`);
 });
