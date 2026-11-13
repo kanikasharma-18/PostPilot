@@ -40,11 +40,13 @@ function App() {
     value: ""
   });
   const [editingMeasurementId, setEditingMeasurementId] = useState("");
-  const [editingValue, setEditingValue] = useState("");
   const [divisionSearch, setDivisionSearch] = useState("");
   const [officeSearch, setOfficeSearch] = useState("");
   const [indicatorSearch, setIndicatorSearch] = useState("");
   const [openForm, setOpenForm] = useState("");
+  const [measurementSearch, setMeasurementSearch] = useState("");
+  const [measurementIndicatorFilter, setMeasurementIndicatorFilter] = useState("");
+  const [measurementOfficeFilter, setMeasurementOfficeFilter] = useState("");
 
   async function loadDashboardCounts() {
     const responses = await Promise.all([
@@ -261,6 +263,11 @@ function App() {
       setError("Value must be numeric.");
       return;
     }
+    const selectedIndicator = indicators.find((indicator) => indicator.id === measurementForm.indicatorId);
+    if (selectedIndicator?.valueType === "COUNT" && !Number.isInteger(Number(measurementForm.value))) {
+      setError("COUNT indicators require a whole number.");
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE_URL}/measurements`, {
         method: "POST",
@@ -275,6 +282,7 @@ function App() {
         periodEnd: "",
         value: ""
       });
+      setOpenForm("");
       await loadMeasurements();
       await loadDashboardCounts();
       setSuccess("Measurement added successfully.");
@@ -286,8 +294,17 @@ function App() {
   async function updateMeasurement(measurement) {
     setError("");
     setSuccess("");
-    if (editingValue === "" || !Number.isFinite(Number(editingValue))) {
+    if (!measurementForm.periodStart || !measurementForm.periodEnd || measurementForm.periodStart > measurementForm.periodEnd) {
+      setError("Valid period dates are required, and the end cannot be earlier than the start.");
+      return;
+    }
+    if (measurementForm.value === "" || !Number.isFinite(Number(measurementForm.value))) {
       setError("Value must be numeric.");
+      return;
+    }
+    const selectedIndicator = indicators.find((indicator) => indicator.id === measurementForm.indicatorId);
+    if (selectedIndicator?.valueType === "COUNT" && !Number.isInteger(Number(measurementForm.value))) {
+      setError("COUNT indicators require a whole number.");
       return;
     }
     try {
@@ -295,15 +312,22 @@ function App() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          periodStart: measurement.periodStart.slice(0, 10),
-          periodEnd: measurement.periodEnd.slice(0, 10),
-          value: editingValue
+          periodStart: measurementForm.periodStart,
+          periodEnd: measurementForm.periodEnd,
+          value: measurementForm.value
         })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not update measurement.");
       setEditingMeasurementId("");
-      setEditingValue("");
+      setMeasurementForm({
+        officeId: "",
+        indicatorId: "",
+        periodStart: "",
+        periodEnd: "",
+        value: ""
+      });
+      setOpenForm("");
       await loadMeasurements();
       await loadDashboardCounts();
       setSuccess("Measurement updated successfully.");
@@ -356,6 +380,16 @@ function App() {
   const visibleIndicators = indicators.filter((indicator) =>
     `${indicator.code} ${indicator.name}`.toLowerCase().includes(indicatorSearch.toLowerCase())
   );
+  const visibleMeasurements = measurements.filter((measurement) => {
+    const officeName = measurement.office?.name || "";
+    const indicatorName = measurement.indicator?.name || "";
+    const matchesSearch = `${officeName} ${indicatorName}`.toLowerCase().includes(measurementSearch.toLowerCase());
+    const matchesIndicator = !measurementIndicatorFilter || measurement.indicatorId === measurementIndicatorFilter;
+    const matchesOffice = !measurementOfficeFilter || measurement.officeId === measurementOfficeFilter;
+    return matchesSearch && matchesIndicator && matchesOffice;
+  });
+  const reportingOfficeCount = new Set(measurements.map((measurement) => measurement.officeId)).size;
+  const trackedIndicatorCount = new Set(measurements.map((measurement) => measurement.indicatorId)).size;
   const indicatorTypeCounts = {
     COUNT: indicators.filter((indicator) => indicator.valueType === "COUNT").length,
     PERCENTAGE: indicators.filter((indicator) => indicator.valueType === "PERCENTAGE").length,
@@ -783,131 +817,153 @@ function App() {
           </section>
         ) : activePage === "Measurements" ? (
           <section className="dashboard">
-            <h1>Measurements</h1>
-            <p>Record and update operational performance measurements.</p>
+            <div className="page-intro management-intro">
+              <div>
+                <span className="eyebrow">PERFORMANCE DATA</span>
+                <h1>Measurements</h1>
+                <p>Record, monitor and manage postal performance data.</p>
+              </div>
+              <div className="page-actions">
+                <button className="primary-button" type="button" onClick={() => {
+                  setMeasurementForm({
+                    officeId: offices[0]?.id || "",
+                    indicatorId: indicators[0]?.id || "",
+                    periodStart: "",
+                    periodEnd: "",
+                    value: ""
+                  });
+                  setOpenForm("measurement");
+                }}>
+                  <span>+</span> Add Measurement
+                </button>
+              </div>
+            </div>
 
-            {error && <p className="error-message">{error}</p>}
-            {success && <p className="success-message">{success}</p>}
+            {(error || success) && (
+              <div className={error ? "notice error-notice" : "notice success-notice"} role="status">
+                <span>{error ? "!" : "✓"}</span>{error || success}
+              </div>
+            )}
             {loading ? (
-              <p>Loading measurements...</p>
+              <div className="management-card loading-state">Loading measurements...</div>
             ) : (
               <>
-                <div className="management-card">
-                  <h2>Add Measurement</h2>
-                  <form onSubmit={addMeasurement} className="simple-form">
-                    <select
-                      value={measurementForm.officeId}
-                      onChange={(event) =>
-                        setMeasurementForm({ ...measurementForm, officeId: event.target.value })
-                      }
-                      required
-                    >
-                      <option value="">Select office</option>
-                      {offices.map((office) => (
-                        <option key={office.id} value={office.id}>
-                          {office.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={measurementForm.indicatorId}
-                      onChange={(event) =>
-                        setMeasurementForm({ ...measurementForm, indicatorId: event.target.value })
-                      }
-                      required
-                    >
-                      <option value="">Select indicator</option>
-                      {indicators.map((indicator) => (
-                        <option key={indicator.id} value={indicator.id}>
-                          {indicator.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="date"
-                      value={measurementForm.periodStart}
-                      onChange={(event) =>
-                        setMeasurementForm({ ...measurementForm, periodStart: event.target.value })
-                      }
-                      required
-                    />
-                    <input
-                      type="date"
-                      value={measurementForm.periodEnd}
-                      onChange={(event) =>
-                        setMeasurementForm({ ...measurementForm, periodEnd: event.target.value })
-                      }
-                      required
-                    />
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="Value"
-                      value={measurementForm.value}
-                      onChange={(event) =>
-                        setMeasurementForm({ ...measurementForm, value: event.target.value })
-                      }
-                      required
-                    />
-                    <button type="submit">Add Measurement</button>
-                  </form>
+                <div className="stats-grid measurement-stats">
+                  {[
+                    { label: "Total Measurements", value: measurements.length, description: "All recorded data points", icon: "▤", color: "purple" },
+                    { label: "Offices Reporting", value: reportingOfficeCount, description: "Offices with records", icon: "⌂", color: "blue" },
+                    { label: "Indicators Tracked", value: trackedIndicatorCount, description: "Indicators with records", icon: "◈", color: "green" }
+                  ].map((item) => (
+                    <div className={`stat-card ${item.color}`} key={item.label}>
+                      <div className="stat-card-top">
+                        <span className="stat-icon">{item.icon}</span>
+                        <span className="stat-label">{item.label}</span>
+                      </div>
+                      <h2>{item.value}</h2>
+                      <span className="stat-description">{item.description}</span>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="management-card">
-                  <h2>Measurement List</h2>
+                <div className="management-card measurement-list-card">
+                  <div className="management-card-heading">
+                    <div>
+                      <h2>Measurement Records</h2>
+                      <p>Submitted postal performance data</p>
+                    </div>
+                    <span className="record-count">{visibleMeasurements.length} shown</span>
+                  </div>
+                  <div className="filter-toolbar">
+                    <label className="search-field">
+                      <span>⌕</span>
+                      <input aria-label="Search measurements" placeholder="Search office or indicator" value={measurementSearch} onChange={(event) => setMeasurementSearch(event.target.value)} />
+                    </label>
+                    <select aria-label="Filter by indicator" value={measurementIndicatorFilter} onChange={(event) => setMeasurementIndicatorFilter(event.target.value)}>
+                      <option value="">All indicators</option>
+                      {indicators.map((indicator) => <option key={indicator.id} value={indicator.id}>{indicator.name}</option>)}
+                    </select>
+                    <select aria-label="Filter by office" value={measurementOfficeFilter} onChange={(event) => setMeasurementOfficeFilter(event.target.value)}>
+                      <option value="">All offices</option>
+                      {offices.map((office) => <option key={office.id} value={office.id}>{office.name}</option>)}
+                    </select>
+                  </div>
                   <table>
                     <thead>
                       <tr>
-                        <th>Office</th>
-                        <th>Indicator</th>
+                        <th>Office Name</th>
+                        <th>Indicator Name</th>
                         <th>Period Start</th>
                         <th>Period End</th>
                         <th>Value</th>
-                        <th>Action</th>
+                        <th>Unit</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {measurements.map((measurement) => (
+                      {visibleMeasurements.map((measurement) => (
                         <tr key={measurement.id}>
-                          <td>{measurement.office?.name || measurement.officeId}</td>
+                          <td><strong>{measurement.office?.name || measurement.officeId}</strong></td>
                           <td>{measurement.indicator?.name || measurement.indicatorId}</td>
-                          <td>{measurement.periodStart.slice(0, 10)}</td>
-                          <td>{measurement.periodEnd.slice(0, 10)}</td>
-                          <td>
-                            {editingMeasurementId === measurement.id ? (
-                              <input
-                                type="number"
-                                step="any"
-                                value={editingValue}
-                                onChange={(event) => setEditingValue(event.target.value)}
-                              />
-                            ) : (
-                              measurement.value
-                            )}
-                          </td>
-                          <td>
-                            {editingMeasurementId === measurement.id ? (
-                              <button type="button" onClick={() => updateMeasurement(measurement)}>
-                                Save
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingMeasurementId(measurement.id);
-                                  setEditingValue(measurement.value);
-                                }}
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </td>
+                          <td>{formatDate(measurement.periodStart)}</td>
+                          <td>{formatDate(measurement.periodEnd)}</td>
+                          <td><span className="measurement-value">{Number(measurement.value).toLocaleString("en-IN")}</span></td>
+                          <td>{measurement.indicator?.unit || "—"}</td>
+                          <td><button className="table-action-button" type="button" onClick={() => {
+                            setEditingMeasurementId(measurement.id);
+                            setMeasurementForm({
+                              officeId: measurement.officeId,
+                              indicatorId: measurement.indicatorId,
+                              periodStart: measurement.periodStart.slice(0, 10),
+                              periodEnd: measurement.periodEnd.slice(0, 10),
+                              value: String(measurement.value)
+                            });
+                            setOpenForm("measurement-edit");
+                          }}>Edit</button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  {measurements.length === 0 && <div className="table-empty"><span>▤</span><strong>No measurements yet</strong><p>Add a record to start tracking postal performance.</p></div>}
+                  {measurements.length > 0 && visibleMeasurements.length === 0 && <div className="table-empty"><strong>No matching measurements</strong><p>Try changing your search or filters.</p></div>}
                 </div>
               </>
+            )}
+            {(openForm === "measurement" || openForm === "measurement-edit") && (
+              <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setOpenForm("")}>
+                <div className="modal-card measurement-modal" role="dialog" aria-modal="true" aria-labelledby="measurement-modal-title">
+                  <div className="modal-heading">
+                    <div>
+                      <span className="eyebrow">{openForm === "measurement-edit" ? "EDIT RECORD" : "NEW RECORD"}</span>
+                      <h2 id="measurement-modal-title">{openForm === "measurement-edit" ? "Edit Measurement" : "Add Measurement"}</h2>
+                    </div>
+                    <button className="close-button" type="button" aria-label="Close form" onClick={() => setOpenForm("")}>×</button>
+                  </div>
+                  <form onSubmit={openForm === "measurement-edit" ? (event) => {
+                    event.preventDefault();
+                    updateMeasurement(measurements.find((measurement) => measurement.id === editingMeasurementId));
+                  } : addMeasurement} className="simple-form">
+                    <div className="form-row">
+                      <label>Office<select value={measurementForm.officeId} disabled={openForm === "measurement-edit"} onChange={(event) => setMeasurementForm({ ...measurementForm, officeId: event.target.value })} required>
+                        <option value="">Select office</option>
+                        {offices.map((office) => <option key={office.id} value={office.id}>{office.name}</option>)}
+                      </select></label>
+                      <label>Indicator<select value={measurementForm.indicatorId} disabled={openForm === "measurement-edit"} onChange={(event) => setMeasurementForm({ ...measurementForm, indicatorId: event.target.value })} required>
+                        <option value="">Select indicator</option>
+                        {indicators.map((indicator) => <option key={indicator.id} value={indicator.id}>{indicator.name}</option>)}
+                      </select></label>
+                    </div>
+                    <div className="form-row">
+                      <label>Period Start<input type="date" value={measurementForm.periodStart} onChange={(event) => setMeasurementForm({ ...measurementForm, periodStart: event.target.value })} required /></label>
+                      <label>Period End<input type="date" value={measurementForm.periodEnd} min={measurementForm.periodStart || undefined} onChange={(event) => setMeasurementForm({ ...measurementForm, periodEnd: event.target.value })} required /></label>
+                    </div>
+                    <label>Measurement Value<input type="number" step={indicators.find((indicator) => indicator.id === measurementForm.indicatorId)?.valueType === "COUNT" ? "1" : "any"} placeholder="Enter value" value={measurementForm.value} onChange={(event) => setMeasurementForm({ ...measurementForm, value: event.target.value })} required /></label>
+                    <div className="modal-actions">
+                      <button className="cancel-button" type="button" onClick={() => setOpenForm("")}>Cancel</button>
+                      <button className="primary-button" type="submit">Save Measurement</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
             )}
           </section>
         ) : (

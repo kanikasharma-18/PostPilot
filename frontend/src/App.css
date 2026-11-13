@@ -956,6 +956,72 @@ th {
   color: #65728a;
 }
 
+.measurement-list-card {
+  overflow-x: auto;
+}
+
+.measurement-stats {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.filter-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+.filter-toolbar .search-field {
+  flex: 1;
+  max-width: 320px;
+}
+
+.filter-toolbar select {
+  background: white;
+  border: 1px solid #e1e6ef;
+  border-radius: 8px;
+  color: #65728a;
+  font-size: 11px;
+  max-width: 180px;
+  padding: 10px;
+}
+
+.measurement-list-card td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.measurement-list-card td strong {
+  color: #35435d;
+}
+
+.measurement-value {
+  color: #5d4ac8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.table-action-button {
+  background: #f0edff;
+  border: 0;
+  border-radius: 6px;
+  color: #604bc7;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 7px 11px;
+}
+
+.measurement-modal .form-row {
+  grid-template-columns: 1fr 1fr;
+}
+
+.measurement-modal .simple-form select:disabled {
+  background: #f3f5f8;
+  color: #8a95a6;
+  cursor: not-allowed;
+}
+
 .indicator-list-card {
   overflow-x: auto;
 }
@@ -1084,6 +1150,20 @@ th {
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .measurement-modal .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filter-toolbar .search-field,
+  .filter-toolbar select {
+    max-width: none;
   }
 
   .management-grid {
