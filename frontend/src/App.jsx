@@ -43,6 +43,7 @@ function App() {
   const [editingValue, setEditingValue] = useState("");
   const [divisionSearch, setDivisionSearch] = useState("");
   const [officeSearch, setOfficeSearch] = useState("");
+  const [indicatorSearch, setIndicatorSearch] = useState("");
   const [openForm, setOpenForm] = useState("");
 
   async function loadDashboardCounts() {
@@ -233,6 +234,7 @@ function App() {
         unit: "",
         valueType: "COUNT"
       });
+      setOpenForm("");
       await loadIndicators();
       await loadDashboardCounts();
       setSuccess("Indicator added successfully.");
@@ -351,6 +353,14 @@ function App() {
   const visibleOffices = offices.filter((office) =>
     `${office.code} ${office.name}`.toLowerCase().includes(officeSearch.toLowerCase())
   );
+  const visibleIndicators = indicators.filter((indicator) =>
+    `${indicator.code} ${indicator.name}`.toLowerCase().includes(indicatorSearch.toLowerCase())
+  );
+  const indicatorTypeCounts = {
+    COUNT: indicators.filter((indicator) => indicator.valueType === "COUNT").length,
+    PERCENTAGE: indicators.filter((indicator) => indicator.valueType === "PERCENTAGE").length,
+    DECIMAL: indicators.filter((indicator) => indicator.valueType === "DECIMAL").length
+  };
   const divisionOfficeCount = (divisionId) =>
     offices.filter((office) => office.divisionId === divisionId).length;
 
@@ -659,88 +669,114 @@ function App() {
           </section>
         ) : activePage === "Indicators" ? (
           <section className="dashboard">
-            <h1>Indicators</h1>
-            <p>Define the performance indicators used by PostPilot.</p>
+            <div className="page-intro management-intro">
+              <div>
+                <span className="eyebrow">PERFORMANCE MANAGEMENT</span>
+                <h1>Indicators</h1>
+                <p>Manage and monitor postal performance indicators.</p>
+              </div>
+              <div className="page-actions">
+                <button className="primary-button" type="button" onClick={() => setOpenForm("indicator")}>
+                  <span>+</span> Add Indicator
+                </button>
+              </div>
+            </div>
 
-            {error && <p className="error-message">{error}</p>}
-            {success && <p className="success-message">{success}</p>}
+            {(error || success) && (
+              <div className={error ? "notice error-notice" : "notice success-notice"} role="status">
+                <span>{error ? "!" : "✓"}</span>{error || success}
+              </div>
+            )}
             {loading ? (
-              <p>Loading indicators...</p>
+              <div className="management-card loading-state">Loading indicators...</div>
             ) : (
-              <div className="management-grid">
-                <div className="management-card">
-                  <h2>Add Indicator</h2>
-                  <form onSubmit={addIndicator} className="simple-form">
-                    <input
-                      placeholder="Indicator code"
-                      value={indicatorForm.code}
-                      onChange={(event) =>
-                        setIndicatorForm({ ...indicatorForm, code: event.target.value })
-                      }
-                      required
-                    />
-                    <input
-                      placeholder="Indicator name"
-                      value={indicatorForm.name}
-                      onChange={(event) =>
-                        setIndicatorForm({ ...indicatorForm, name: event.target.value })
-                      }
-                      required
-                    />
-                    <textarea
-                      placeholder="Description"
-                      value={indicatorForm.description}
-                      onChange={(event) =>
-                        setIndicatorForm({ ...indicatorForm, description: event.target.value })
-                      }
-                      required
-                    />
-                    <input
-                      placeholder="Unit"
-                      value={indicatorForm.unit}
-                      onChange={(event) =>
-                        setIndicatorForm({ ...indicatorForm, unit: event.target.value })
-                      }
-                      required
-                    />
-                    <select
-                      value={indicatorForm.valueType}
-                      onChange={(event) =>
-                        setIndicatorForm({ ...indicatorForm, valueType: event.target.value })
-                      }
-                    >
-                      <option value="COUNT">COUNT</option>
-                      <option value="DECIMAL">DECIMAL</option>
-                      <option value="PERCENTAGE">PERCENTAGE</option>
-                    </select>
-                    <button type="submit">Add Indicator</button>
-                  </form>
+              <>
+                <div className="stats-grid indicator-stats">
+                  {[
+                    { label: "Total Indicators", value: indicators.length, description: "All defined indicators", icon: "◈", color: "purple" },
+                    { label: "Count Indicators", value: indicatorTypeCounts.COUNT, description: "Whole-number metrics", icon: "#", color: "blue" },
+                    { label: "Percentage Indicators", value: indicatorTypeCounts.PERCENTAGE, description: "Percentage-based metrics", icon: "%", color: "green" },
+                    { label: "Decimal Indicators", value: indicatorTypeCounts.DECIMAL, description: "Decimal-value metrics", icon: "·", color: "orange" }
+                  ].map((item) => (
+                    <div className={`stat-card ${item.color}`} key={item.label}>
+                      <div className="stat-card-top">
+                        <span className="stat-icon">{item.icon}</span>
+                        <span className="stat-label">{item.label}</span>
+                      </div>
+                      <h2>{item.value}</h2>
+                      <span className="stat-description">{item.description}</span>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="management-card">
-                  <h2>Indicator List</h2>
+                <div className="management-card indicator-list-card">
+                  <div className="management-card-heading">
+                    <div>
+                      <h2>Indicators</h2>
+                      <p>Configured postal performance measures</p>
+                    </div>
+                    <span className="record-count">{indicators.length} total</span>
+                  </div>
+                  <div className="table-toolbar">
+                    <label className="search-field">
+                      <span>⌕</span>
+                      <input aria-label="Search indicators" placeholder="Search by code or name" value={indicatorSearch} onChange={(event) => setIndicatorSearch(event.target.value)} />
+                    </label>
+                  </div>
                   <table>
                     <thead>
                       <tr>
-                        <th>Code</th>
-                        <th>Name</th>
+                        <th>Indicator Code</th>
+                        <th>Indicator Name</th>
                         <th>Description</th>
                         <th>Unit</th>
                         <th>Value Type</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {indicators.map((indicator) => (
+                      {visibleIndicators.map((indicator) => (
                         <tr key={indicator.id}>
-                          <td>{indicator.code}</td>
-                          <td>{indicator.name}</td>
-                          <td>{indicator.description}</td>
+                          <td><span className="code-badge">{indicator.code}</span></td>
+                          <td><strong>{indicator.name}</strong></td>
+                          <td className="description-cell">{indicator.description}</td>
                           <td>{indicator.unit}</td>
-                          <td>{indicator.valueType}</td>
+                          <td><span className={`value-type-badge ${indicator.valueType.toLowerCase()}`}>{indicator.valueType}</span></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  {indicators.length === 0 && <div className="table-empty"><span>◈</span><strong>No indicators yet</strong><p>Add your first indicator to start monitoring performance.</p></div>}
+                  {indicators.length > 0 && visibleIndicators.length === 0 && <div className="table-empty"><strong>No matching indicators</strong><p>Try a different search term.</p></div>}
+                </div>
+              </>
+            )}
+            {openForm === "indicator" && (
+              <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setOpenForm("")}>
+                <div className="modal-card indicator-modal" role="dialog" aria-modal="true" aria-labelledby="indicator-modal-title">
+                  <div className="modal-heading">
+                    <div>
+                      <span className="eyebrow">NEW INDICATOR</span>
+                      <h2 id="indicator-modal-title">Add Indicator</h2>
+                    </div>
+                    <button className="close-button" type="button" aria-label="Close form" onClick={() => setOpenForm("")}>×</button>
+                  </div>
+                  <form onSubmit={addIndicator} className="simple-form">
+                    <div className="form-row">
+                      <label>Indicator Code<input placeholder="e.g. DELV_ON_TIME" value={indicatorForm.code} onChange={(event) => setIndicatorForm({ ...indicatorForm, code: event.target.value })} required /></label>
+                      <label>Unit<input placeholder="e.g. %" value={indicatorForm.unit} onChange={(event) => setIndicatorForm({ ...indicatorForm, unit: event.target.value })} required /></label>
+                    </div>
+                    <label>Indicator Name<input placeholder="e.g. On-time delivery rate" value={indicatorForm.name} onChange={(event) => setIndicatorForm({ ...indicatorForm, name: event.target.value })} required /></label>
+                    <label>Description<textarea placeholder="Describe what this indicator measures" value={indicatorForm.description} onChange={(event) => setIndicatorForm({ ...indicatorForm, description: event.target.value })} required /></label>
+                    <label>Value Type<select value={indicatorForm.valueType} onChange={(event) => setIndicatorForm({ ...indicatorForm, valueType: event.target.value })}>
+                      <option value="COUNT">COUNT</option>
+                      <option value="PERCENTAGE">PERCENTAGE</option>
+                      <option value="DECIMAL">DECIMAL</option>
+                    </select></label>
+                    <div className="modal-actions">
+                      <button className="cancel-button" type="button" onClick={() => setOpenForm("")}>Cancel</button>
+                      <button className="primary-button" type="submit">Save Indicator</button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}
