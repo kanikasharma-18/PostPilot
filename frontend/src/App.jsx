@@ -57,6 +57,10 @@ function App() {
     const [divisionsData, officesData, indicatorsData, measurementsData] =
       await Promise.all(responses.map((response) => response.json()));
 
+    setDivisions(divisionsData);
+    setOffices(officesData);
+    setIndicators(indicatorsData);
+    setMeasurements(measurementsData);
     setCounts({
       Divisions: divisionsData.length,
       Offices: officesData.length,
@@ -302,11 +306,40 @@ function App() {
   }
 
   const menuItems = [
-    "Dashboard",
-    "Divisions & Offices",
-    "Indicators",
-    "Measurements"
+    { label: "Dashboard", icon: "▦" },
+    { label: "Divisions & Offices", icon: "⌂" },
+    { label: "Indicators", icon: "◈" },
+    { label: "Measurements", icon: "▤" }
   ];
+  const measurementValues = measurements
+    .map((measurement) => Number(measurement.value))
+    .filter((value) => Number.isFinite(value));
+  const measurementTotal = measurementValues.reduce((total, value) => total + value, 0);
+  const measurementAverage = measurementValues.length > 0
+    ? measurementTotal / measurementValues.length
+    : 0;
+  const measurementMaximum = measurementValues.length > 0 ? Math.max(...measurementValues) : 0;
+  const measurementMinimum = measurementValues.length > 0 ? Math.min(...measurementValues) : 0;
+  const chartMeasurements = [...measurements]
+    .sort((first, second) => new Date(first.periodStart) - new Date(second.periodStart))
+    .slice(-8);
+  const chartMaximum = Math.max(
+    ...chartMeasurements.map((measurement) => Number(measurement.value)).filter(Number.isFinite),
+    1
+  );
+  const formatDate = (date) => new Date(date).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+  const openPage = (page) => {
+    setActivePage(page);
+    setError("");
+    setSuccess("");
+    if (page === "Divisions & Offices") loadDivisionsAndOffices();
+    if (page === "Indicators") loadIndicators();
+    if (page === "Measurements") loadMeasurements();
+  };
 
   return (
     <div className="app">
@@ -317,47 +350,60 @@ function App() {
         <nav>
           {menuItems.map((item) => (
             <button
-              key={item}
-              className={activePage === item ? "nav-item active" : "nav-item"}
-              onClick={() => {
-                setActivePage(item);
-                if (item === "Divisions & Offices") {
-                  loadDivisionsAndOffices();
-                }
-                if (item === "Indicators") {
-                  loadIndicators();
-                }
-                if (item === "Measurements") {
-                  loadMeasurements();
-                }
-              }}
+              key={item.label}
+              className={activePage === item.label ? "nav-item active" : "nav-item"}
+              onClick={() => openPage(item.label)}
             >
-              {item}
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-          Department of Posts
+          <strong>Department of Posts</strong>
+          <span>Government of India</span>
         </div>
       </aside>
 
       <main className="main-content">
         <header className="topbar">
-          <h3>{activePage}</h3>
-          <span>PostPilot Administration</span>
+          <div className="topbar-title">
+            <span className="topbar-kicker">POSTAL PERFORMANCE SYSTEM</span>
+            <h3>{activePage}</h3>
+          </div>
+          <div className="topbar-actions">
+            <button className="icon-button" type="button" aria-label="Notifications">♢</button>
+            <span>PostPilot Administration</span>
+            <div className="profile-badge">PA</div>
+          </div>
         </header>
 
         {activePage === "Dashboard" ? (
           <section className="dashboard">
-            <h1>Dashboard Overview</h1>
-            <p>Monitor postal performance across divisions and offices.</p>
+            <div className="page-intro">
+              <div>
+                <span className="eyebrow">OVERVIEW</span>
+                <h1>Dashboard</h1>
+                <p>Monitor postal performance across divisions and offices.</p>
+              </div>
+              <div className="live-status"><span /> Live data</div>
+            </div>
 
             <div className="stats-grid">
-              {Object.keys(counts).map((item) => (
-                <div className="stat-card" key={item}>
-                  <span>{item}</span>
-                  <h2>{counts[item]}</h2>
+              {[
+                { label: "Divisions", description: "Administrative divisions", icon: "◈", color: "purple" },
+                { label: "Offices", description: "Registered postal offices", icon: "⌂", color: "blue" },
+                { label: "Indicators", description: "Performance indicators", icon: "◉", color: "green" },
+                { label: "Measurements", description: "Recorded measurements", icon: "▤", color: "orange" }
+              ].map((item) => (
+                <div className={`stat-card ${item.color}`} key={item.label}>
+                  <div className="stat-card-top">
+                    <span className="stat-icon">{item.icon}</span>
+                    <span className="stat-label">{item.label}</span>
+                  </div>
+                  <h2>{counts[item.label]}</h2>
+                  <span className="stat-description">{item.description}</span>
                 </div>
               ))}
             </div>
@@ -365,13 +411,111 @@ function App() {
             {error && <p className="error-message">{error}</p>}
             {success && <p className="success-message">{success}</p>}
 
-            <div className="welcome-card">
-              <h2>Welcome to PostPilot</h2>
-              <p>
-                Your central platform for monitoring and managing
-                postal performance data.
-              </p>
+            <div className="dashboard-content-grid">
+              <div className="overview-card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Measurements Overview</h2>
+                    <p>Recorded values across all reporting periods</p>
+                  </div>
+                  <span className="card-period">All time</span>
+                </div>
+                {chartMeasurements.length === 0 ? (
+                  <div className="empty-state chart-empty">
+                    <span className="empty-icon">⌁</span>
+                    <strong>No measurements yet</strong>
+                    <span>Add a measurement to see performance trends.</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="chart">
+                      <div className="chart-y-axis">
+                        <span>{chartMaximum.toFixed(0)}</span>
+                        <span>{(chartMaximum / 2).toFixed(0)}</span>
+                        <span>0</span>
+                      </div>
+                      <div className="chart-bars">
+                        {chartMeasurements.map((measurement) => {
+                          const value = Number(measurement.value);
+                          const height = Math.max((value / chartMaximum) * 100, 4);
+                          return (
+                            <div className="bar-column" key={measurement.id}>
+                              <span className="bar-value">{value}</span>
+                              <div className="bar-track">
+                                <div className="bar" style={{ height: `${height}%` }} />
+                              </div>
+                              <span className="bar-label">{formatDate(measurement.periodStart).slice(0, 6)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="summary-grid">
+                      <div><span>Total</span><strong>{measurementTotal.toFixed(2)}</strong></div>
+                      <div><span>Average</span><strong>{measurementAverage.toFixed(2)}</strong></div>
+                      <div><span>Maximum</span><strong>{measurementMaximum.toFixed(2)}</strong></div>
+                      <div><span>Minimum</span><strong>{measurementMinimum.toFixed(2)}</strong></div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="overview-card recent-card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Recent Measurements</h2>
+                    <p>Latest submitted performance records</p>
+                  </div>
+                  <button className="text-button" type="button" onClick={() => openPage("Measurements")}>
+                    View all <span>→</span>
+                  </button>
+                </div>
+                {measurements.length === 0 ? (
+                  <div className="empty-state">
+                    <span className="empty-icon">▤</span>
+                    <strong>No recent measurements</strong>
+                    <span>Submitted records will appear here.</span>
+                  </div>
+                ) : (
+                  <div className="recent-list">
+                    {measurements.slice(0, 5).map((measurement) => (
+                      <div className="recent-row" key={measurement.id}>
+                        <div className="recent-main">
+                          <strong>{measurement.office?.name || measurement.officeId}</strong>
+                          <span>{measurement.indicator?.name || measurement.indicatorId}</span>
+                        </div>
+                        <span className="recent-period">{formatDate(measurement.periodStart)}</span>
+                        <strong className="recent-value">{measurement.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
+
+            <div className="quick-actions">
+              <div className="section-heading">
+                <div>
+                  <h2>Quick Actions</h2>
+                  <p>Common administration tasks</p>
+                </div>
+              </div>
+              <div className="action-grid">
+                {[
+                  { label: "Add Division", description: "Create a new division", page: "Divisions & Offices", icon: "◈", color: "purple" },
+                  { label: "Add Office", description: "Register a postal office", page: "Divisions & Offices", icon: "⌂", color: "blue" },
+                  { label: "Add Indicator", description: "Define a performance metric", page: "Indicators", icon: "◉", color: "green" },
+                  { label: "Add Measurement", description: "Record a new value", page: "Measurements", icon: "▤", color: "orange" }
+                ].map((action) => (
+                  <button className="action-card" type="button" key={action.label} onClick={() => openPage(action.page)}>
+                    <span className={`action-icon ${action.color}`}>{action.icon}</span>
+                    <span className="action-copy"><strong>{action.label}</strong><span>{action.description}</span></span>
+                    <span className="action-arrow">→</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <footer className="app-footer">© 2026 Department of Posts, Government of India. All rights reserved.</footer>
           </section>
         ) : activePage === "Divisions & Offices" ? (
           <section className="dashboard">
