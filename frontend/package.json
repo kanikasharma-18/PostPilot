@@ -4,76 +4,86 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "lint": "eslint .",
-  "preview": "vite preview",
-  "electron": "electron .",
-  "dist": "npm run build && electron-builder --mac dmg"
-},
-  "build": {
-  "appId": "com.postpilot.app",
-  "productName": "PostPilot",
-  "directories": {
-    "output": "release"
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "electron": "electron .",
+    "dist": "npm run build && electron-builder --mac dmg"
   },
-  "files": [
-    "dist/**/*",
-    "main.cjs",
-    "package.json"
-  ],
-  "extraResources": [
-    {
-      "from": "../backend",
-      "to": "backend",
-      "filter": [
-        "server.js",
-        "routes/**/*",
-        "db/**/*",
-        "generated/prisma/**/*",
-        "prisma/**/*",
-        "package.json",
-        "!**/.env",
-        "!**/.env.*",
-        "!**/.gitignore",
-        "!**/.git/**/*",
-        "!**/.agents/**/*",
-        "!**/.claude/**/*",
-        "!**/.windsurf/**/*",
-        "!skills-lock.json"
-      ]
+  "build": {
+    "appId": "com.postpilot.app",
+    "productName": "PostPilot",
+    "directories": {
+      "output": "release"
     },
-    {
-      "from": "../backend/node_modules",
-      "to": "backend/node_modules",
-      "filter": [
-        "**/*",
-        "!prisma/**/*",
-        "!**/.cache/**/*",
-        "!**/test/**/*",
-        "!**/tests/**/*",
-        "!**/.github/**/*",
-        "!**/docs/**/*",
-        "!**/README*",
-        "!**/LICENSE*",
-        "!**/.bin/**/*",
-        "!**/.env",
-        "!**/.env.*",
-        "!**/.gitignore"
-      ]
+    "files": [
+      "dist/**/*",
+      "main.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "server.js",
+          "routes/**/*",
+          "db/**/*",
+          "generated/prisma/**/*",
+          "prisma/**/*",
+          "package.json",
+          "!**/.env",
+          "!**/.env.*",
+          "!**/.gitignore",
+          "!**/.git/**/*",
+          "!**/.agents/**/*",
+          "!**/.claude/**/*",
+          "!**/.windsurf/**/*",
+          "!skills-lock.json"
+        ]
+      },
+      {
+        "from": "../backend/node_modules",
+        "to": "backend/node_modules",
+        "filter": [
+          "**/*",
+          "!prisma/**/*",
+          "!**/.cache/**/*",
+          "!**/test/**/*",
+          "!**/tests/**/*",
+          "!**/.github/**/*",
+          "!**/docs/**/*",
+          "!**/README*",
+          "!**/LICENSE*",
+          "!**/.bin/**/*",
+          "!**/.env",
+          "!**/.env.*",
+          "!**/.gitignore"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
     }
-  ],
-  "mac": {
-    "target": ["dmg"],
-    "category": "public.app-category.productivity"
-  }
-},
+  },
   "dependencies": {
+    "axios": "^1.21.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.73.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5",
+    "recharts": "^3.10.1",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
@@ -83,6 +93,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
+    "tailwindcss": "^4.3.5",
     "vite": "^8.3.6"
   },
   "main": "main.cjs"
