@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Building2,
   Package,
@@ -33,6 +33,7 @@ export default function Overview() {
   const { user } = useAuth();
   const { selectedRange, backendStatus } = useData();
 
+  const [officeStatusFilter, setOfficeStatusFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [kpis, setKpis] = useState(null);
@@ -59,7 +60,7 @@ export default function Overview() {
         rankingsRes
       ] = await Promise.all([
         analyticsService.getKPIs(selectedRange),
-        analyticsService.getDeliveryTrends(),
+        analyticsService.getDeliveryTrends(selectedRange),
         analyticsService.getMonthlyStats(),
         analyticsService.getStatusDistribution(),
         analyticsService.getCriticalAlerts(),
@@ -86,6 +87,35 @@ export default function Overview() {
   useEffect(() => {
     loadData();
   }, [selectedRange]);
+
+  const scopedOffices = useMemo(
+    () => officeStatusFilter === "All"
+      ? offices
+      : offices.filter(office => office.status?.toLowerCase() === officeStatusFilter.toLowerCase()),
+    [offices, officeStatusFilter]
+  );
+  const scopedOfficeCodes = useMemo(
+    () => new Set(scopedOffices.map(office => office.code)),
+    [scopedOffices]
+  );
+  const scopedAlerts = useMemo(
+    () => officeStatusFilter === "All"
+      ? alerts
+      : alerts.filter(alert => scopedOfficeCodes.has(alert.officeCode)),
+    [alerts, officeStatusFilter, scopedOfficeCodes]
+  );
+  const scopedRankings = useMemo(() => {
+    if (officeStatusFilter === "All") return rankings;
+
+    const sortedOffices = [...scopedOffices].sort((a, b) => b.successRate - a.successRate);
+    return {
+      top: sortedOffices.slice(0, 4),
+      needsAttention: sortedOffices
+        .filter(office => office.status === "Critical" || office.status === "Average")
+        .sort((a, b) => a.successRate - b.successRate)
+        .slice(0, 4)
+    };
+  }, [officeStatusFilter, rankings, scopedOffices]);
 
   const handleManualRefresh = () => {
     loadData(true);
@@ -126,6 +156,21 @@ export default function Overview() {
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+          <label className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-300 rounded-lg">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+            <span className="sr-only">Filter offices by health status</span>
+            <select
+              value={officeStatusFilter}
+              onChange={event => setOfficeStatusFilter(event.target.value)}
+              className="bg-transparent text-slate-700 focus:outline-none"
+              aria-label="Filter offices by health status"
+            >
+              <option value="All">All office statuses</option>
+              <option value="Optimal">Optimal</option>
+              <option value="Average">Average</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </label>
           <DateRangePicker />
           <Button
             variant="secondary"
@@ -234,9 +279,15 @@ export default function Overview() {
         {/* 1. Delivery Performance Trend */}
         <Card
           title="Delivery Clearance Trend"
-          subtitle="Daily volume breakdown of delivered, in-transit, and delayed consignments"
+          subtitle={`Daily delivery volumes for ${selectedRange}`}
         >
-          <DeliveryTrendChart data={trends} height={290} />
+          {trends.length > 0 ? (
+            <DeliveryTrendChart data={trends} height={290} />
+          ) : (
+            <div className="h-[290px] flex items-center justify-center text-sm text-slate-500">
+              No delivery trend data is available for this date range.
+            </div>
+          )}
         </Card>
 
         {/* 2. Monthly Parcel Inflow & Dispatch */}
@@ -256,7 +307,7 @@ export default function Overview() {
             subtitle="Top performing delivery centers by successful SLA completion rate"
           >
             <OfficePerformanceChart
-              data={rankings.top.concat(rankings.needsAttention.slice(0, 2))}
+              data={scopedRankings.top.concat(scopedRankings.needsAttention.slice(0, 2))}
               height={280}
             />
           </Card>
@@ -277,7 +328,7 @@ export default function Overview() {
         subtitle="Live delivery status mapping of Head, Sub, and Branch Post Offices in South Delhi"
       >
         <DivisionalMap
-          offices={offices}
+          offices={scopedOffices}
           onSelectOffice={(office) => setInspectedOffice(office)}
         />
       </Card>
@@ -287,13 +338,13 @@ export default function Overview() {
         title="Operational Alerts & SLA Exceptions"
         subtitle="Automated alerts requiring divisional officer intervention or beat reinforcement"
       >
-        <AlertsList alerts={alerts} />
+        <AlertsList alerts={scopedAlerts} />
       </Card>
 
       {/* F. Top and Low Performing Offices */}
       <TopOfficesList
-        topOffices={rankings.top}
-        needsAttention={rankings.needsAttention}
+        topOffices={scopedRankings.top}
+        needsAttention={scopedRankings.needsAttention}
         onSelectOffice={(office) => setInspectedOffice(office)}
       />
 

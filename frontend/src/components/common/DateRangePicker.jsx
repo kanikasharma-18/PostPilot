@@ -8,6 +8,7 @@ export default function DateRangePicker() {
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [showCustomModal, setShowCustomModal] = useState(false);
+  const [rangeError, setRangeError] = useState("");
 
   const ranges = ["Today", "Last 7 Days", "Last 30 Days", "Last 90 Days", "Custom Date Range"];
 
@@ -22,10 +23,15 @@ export default function DateRangePicker() {
   };
 
   const applyCustomRange = () => {
-    if (customStart && customEnd) {
-      setSelectedRange(`${customStart} to ${customEnd}`);
-      setShowCustomModal(false);
+    if (!customStart || !customEnd) return;
+    if (customStart > customEnd) {
+      setRangeError("End date must be on or after the start date.");
+      return;
     }
+
+    setSelectedRange(`${customStart} to ${customEnd}`);
+    setRangeError("");
+    setShowCustomModal(false);
   };
 
   return (
@@ -48,7 +54,8 @@ export default function DateRangePicker() {
           />
           <div className="absolute right-0 z-30 w-48 mt-1 origin-top-right bg-white rounded-xl shadow-lg border border-slate-200 py-1 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
             {ranges.map((range) => {
-              const active = selectedRange === range;
+              const active = selectedRange === range ||
+                (range === "Custom Date Range" && selectedRange.includes(" to "));
               return (
                 <button
                   key={range}
@@ -82,7 +89,10 @@ export default function DateRangePicker() {
                 <input
                   type="date"
                   value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
+                  onChange={(e) => {
+                    setCustomStart(e.target.value);
+                    setRangeError("");
+                  }}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -93,11 +103,17 @@ export default function DateRangePicker() {
                 <input
                   type="date"
                   value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
+                  onChange={(e) => {
+                    setCustomEnd(e.target.value);
+                    setRangeError("");
+                  }}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
             </div>
+            {rangeError && (
+              <p className="mt-2 text-xs text-rose-600" role="alert">{rangeError}</p>
+            )}
             <div className="flex justify-end gap-2 mt-5">
               <button
                 type="button"

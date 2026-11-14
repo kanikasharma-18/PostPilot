@@ -4,7 +4,8 @@ import Badge from "../common/Badge";
 import { formatNumber } from "../../utils/formatters";
 
 export default function DivisionalMap({ offices = [], onSelectOffice }) {
-  const [selectedPin, setSelectedPin] = useState(offices[0] || null);
+  const [selectedPinId, setSelectedPinId] = useState(offices[0]?.id || null);
+  const selectedPin = offices.find(office => office.id === selectedPinId) || offices[0] || null;
   const [viewMode, setViewMode] = useState("map"); // "map" or "table"
 
   // Relative coordinate projection inside SVG canvas (lat: 28.50 - 28.64, lon: 77.15 - 77.30)
@@ -146,7 +147,7 @@ export default function DivisionalMap({ offices = [], onSelectOffice }) {
                   <g
                     key={office.id}
                     onClick={() => {
-                      setSelectedPin(office);
+                      setSelectedPinId(office.id);
                       if (onSelectOffice) onSelectOffice(office);
                     }}
                     className="cursor-pointer transition-transform duration-150"

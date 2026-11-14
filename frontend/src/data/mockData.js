@@ -357,14 +357,14 @@ export const MOCK_KPIS = {
 };
 
 export const MOCK_DELIVERY_TRENDS = [
-  { date: "01 Nov", delivered: 6420, inTransit: 810, pending: 320, delayed: 160 },
-  { date: "03 Nov", delivered: 6890, inTransit: 780, pending: 290, delayed: 145 },
-  { date: "05 Nov", delivered: 7120, inTransit: 940, pending: 380, delayed: 210 },
-  { date: "07 Nov", delivered: 6980, inTransit: 890, pending: 340, delayed: 180 },
-  { date: "09 Nov", delivered: 7450, inTransit: 1020, pending: 410, delayed: 240 },
-  { date: "11 Nov", delivered: 7810, inTransit: 1110, pending: 460, delayed: 285 },
-  { date: "13 Nov", delivered: 7340, inTransit: 920, pending: 350, delayed: 195 },
-  { date: "14 Nov", delivered: 7620, inTransit: 980, pending: 370, delayed: 205 }
+  { date: "01 Nov", isoDate: "2026-11-01", delivered: 6420, inTransit: 810, pending: 320, delayed: 160 },
+  { date: "03 Nov", isoDate: "2026-11-03", delivered: 6890, inTransit: 780, pending: 290, delayed: 145 },
+  { date: "05 Nov", isoDate: "2026-11-05", delivered: 7120, inTransit: 940, pending: 380, delayed: 210 },
+  { date: "07 Nov", isoDate: "2026-11-07", delivered: 6980, inTransit: 890, pending: 340, delayed: 180 },
+  { date: "09 Nov", isoDate: "2026-11-09", delivered: 7450, inTransit: 1020, pending: 410, delayed: 240 },
+  { date: "11 Nov", isoDate: "2026-11-11", delivered: 7810, inTransit: 1110, pending: 460, delayed: 285 },
+  { date: "13 Nov", isoDate: "2026-11-13", delivered: 7340, inTransit: 920, pending: 350, delayed: 195 },
+  { date: "14 Nov", isoDate: "2026-11-14", delivered: 7620, inTransit: 980, pending: 370, delayed: 205 }
 ];
 
 export const MOCK_MONTHLY_PARCEL_STATS = [

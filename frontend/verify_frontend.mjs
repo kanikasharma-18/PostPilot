@@ -1,10 +1,15 @@
 import { postalService } from "./src/services/postalService.js";
-import { analyticsService } from "./src/services/analyticsService.js";
+import { analyticsService, filterDeliveryTrendsByRange } from "./src/services/analyticsService.js";
 import { predictionService } from "./src/services/predictionService.js";
 import { reportService } from "./src/services/reportService.js";
 import { authService } from "./src/services/authService.js";
 import { formatNumber, formatPercent, formatDate, getStatusColor } from "./src/utils/formatters.js";
-import { MOCK_POST_OFFICES, MOCK_KPIS, DEMO_DIVISION } from "./src/data/mockData.js";
+import {
+  MOCK_DELIVERY_TRENDS,
+  MOCK_POST_OFFICES,
+  MOCK_KPIS,
+  DEMO_DIVISION
+} from "./src/data/mockData.js";
 
 async function runVerification() {
   console.log("=== PostPilot DISU Comprehensive Verification ===");
@@ -74,6 +79,20 @@ async function runVerification() {
     const kpi = await analyticsService.getKPIs(r);
     assert(kpi.data && kpi.data.totalParcels && kpi.data.overallSuccessRate, `KPIs loaded for range '${r}'`);
   }
+
+  const todayTrends = filterDeliveryTrendsByRange(
+    (await analyticsService.getDeliveryTrends("Today")).data,
+    "Today"
+  );
+  assert(todayTrends.length === 1 && todayTrends[0].date === "14 Nov", "Today filter limits trend data to its latest daily point");
+  assert(
+    filterDeliveryTrendsByRange(MOCK_DELIVERY_TRENDS, "Last 7 Days").length === 4,
+    "Seven-day filter excludes older trend data"
+  );
+  assert(
+    filterDeliveryTrendsByRange(MOCK_DELIVERY_TRENDS, "2026-11-03 to 2026-11-07").length === 3,
+    "Custom date filter includes only points within its inclusive bounds"
+  );
 
   const trends = await analyticsService.getDeliveryTrends();
   assert(trends.data && trends.data.length > 0 && trends.data[0].delivered !== undefined, "Delivery trends data points present");
